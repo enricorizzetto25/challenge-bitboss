@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="it" data-theme="light" data-variant="lime">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Worker Gantt — DOT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --ink:#141322; --text-2:#5E5E68; --muted:#A4A4A9; --line:#ECECEF;
+    --surface:#FFFFFF; --surface-2:#F6F6F8; --surface-3:#EFEFF2;
+    --head-bg:#0F1526; --grid:#E7E7EC; --grid-dk:rgba(255,255,255,.09);
+    --brand:#C0FAA0; --brand-strong:#A6E87F; --brand-tint:#EAFBDD; --brand-ink:#2C4A16;
+    --peri:#AFC0FF; --peri-tint:#ECEFFF; --coin-bg:#E7ECFF; --coin-ink:#5B7CE0;
+    --success:#2BC155; --success-text:#0F7A34; --success-bg:#E7FBEF;
+    --danger:#FD5C5C; --danger-text:#C22B2B; --danger-bg:#FFECEC;
+    --av-hi:#FFB300; --av-md:#FFD37A; --av-lo:#FFECC2; --av-txt:#3E2E00; --av-border:#E9A400;
+    --today-bg:var(--brand-tint); --today-ink:var(--brand-ink); --today-line:var(--brand-strong); --focus:var(--brand);
+    --sel-line:rgba(20,19,34,.42); --sel-bg:rgba(20,19,34,.05); --sel-accent:#6C93FF;
+    --font-ui:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+    --font-head:"Poppins",var(--font-ui);
+    --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px;
+    --r-sm:8px; --r-md:12px; --r-lg:14px; --r-pill:999px;
+    --shadow-sm:0 1px 2px rgba(20,19,34,.05);
+    --wk:76px;          /* larghezza colonna settimana */
+    --info-w:512px;     /* larghezza pannello info congelato */
+  }
+  [data-variant="lime"]{
+    --av-hi:#6FCF3E; --av-md:#95DE5F; --av-lo:#BEEA96; --av-txt:#22401A; --av-border:#5FBE39;
+    --today-bg:var(--peri-tint); --today-ink:#2E3A73; --today-line:#8FA6FF; --focus:#3B5BDB;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{ font-family:var(--font-ui); background:var(--surface); color:var(--ink); font-size:14px; line-height:1.45; -webkit-font-smoothing:antialiased; font-variant-numeric:tabular-nums; }
+  .tnum{ font-variant-numeric:tabular-nums; }
+
+  /* SHELL */
+  .app{ display:grid; grid-template-columns:248px 1fr; min-height:100vh; }
+  .sidebar{ background:var(--surface); border-right:1px solid var(--line); padding:var(--sp-5) var(--sp-4); position:sticky; top:0; height:100vh; display:flex; flex-direction:column; gap:var(--sp-2); }
+  .brand-logo{ display:flex; align-items:center; gap:var(--sp-3); padding:var(--sp-2) var(--sp-2) var(--sp-6); }
+  .brand-mark{ width:36px; height:36px; border-radius:10px; background:var(--ink); display:flex; align-items:center; justify-content:center; color:var(--brand); flex:none; }
+  .brand-name{ font-family:var(--font-head); font-weight:700; font-size:19px; letter-spacing:-.01em; }
+  .brand-name span{ color:var(--muted); font-weight:600; }
+  .nav-label{ font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); padding:var(--sp-2) var(--sp-2) var(--sp-2); }
+  .nav-item{ display:flex; align-items:center; gap:var(--sp-3); padding:11px var(--sp-3); border-radius:var(--r-md); color:var(--text-2); font-weight:500; font-size:14px; text-decoration:none; position:relative; min-height:44px; }
+  .nav-item svg{ width:20px; height:20px; flex:none; }
+  .nav-item:hover{ background:var(--surface-2); color:var(--ink); }
+  .nav-item.active{ background:var(--brand-tint); color:var(--ink); font-weight:600; }
+  .nav-item.active::before{ content:""; position:absolute; left:-16px; top:9px; bottom:9px; width:4px; border-radius:0 4px 4px 0; background:var(--brand-strong); }
+
+  .main{ min-width:0; display:flex; flex-direction:column; }
+  .topbar{ display:flex; align-items:center; gap:var(--sp-4); padding:var(--sp-4) var(--sp-6); position:sticky; top:0; background:var(--surface); z-index:30; }
+  .search{ display:flex; align-items:center; gap:var(--sp-2); flex:1; max-width:440px; background:var(--surface-2); border-radius:var(--r-lg); padding:12px var(--sp-4); color:var(--text-2); }
+  .search input{ border:0; background:transparent; outline:none; width:100%; font-family:inherit; font-size:14px; color:var(--ink); }
+  .search:focus-within{ outline:3px solid var(--focus); outline-offset:1px; }
+  .search svg{ width:18px; height:18px; color:var(--muted); flex:none; }
+  /* filtro "solo disponibili": chip toggle a sinistra dell'orizzonte */
+  .filt{ display:inline-flex; align-items:center; height:36px; padding:0 14px; border:1px solid var(--line); border-radius:var(--r-pill);
+         background:var(--surface); color:var(--text-2); font-family:inherit; font-size:12.5px; font-weight:600; cursor:pointer; flex:none; white-space:nowrap;
+         transition:background .15s ease, border-color .15s ease, color .15s ease; }
+  .filt:hover{ border-color:var(--muted); color:var(--ink); }
+  .filt:focus-visible{ outline:3px solid var(--focus); outline-offset:1px; }
+  .filt .filt-check{ width:0; height:15px; opacity:0; margin-right:0; transition:width .18s ease, opacity .18s ease, margin .18s ease; }
+  .filt[aria-pressed="true"]{ background:var(--brand); border-color:var(--brand-strong); color:var(--brand-ink); font-weight:700; }
+  .filt[aria-pressed="true"] .filt-check{ width:15px; opacity:1; margin-right:6px; }
+  .me{ display:flex; align-items:center; gap:var(--sp-3); }
+  .me .who{ text-align:right; line-height:1.2; }
+  .me .who b{ font-size:13px; }
+  .me .who small{ color:var(--text-2); font-size:12px; }
+  .avatar{ width:44px; height:44px; border-radius:var(--r-pill); flex:none; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; background:var(--peri); color:var(--ink); }
+
+  /* CONTENT — full page */
+  .content{ padding:var(--sp-2) var(--sp-6) var(--sp-6); }
+  .page-head{ margin-bottom:var(--sp-5); }
+  .page-head h1{ font-family:var(--font-head); font-size:24px; font-weight:700; margin:0; letter-spacing:-.02em; }
+  .page-head p{ margin:8px 0 0; color:var(--text-2); font-size:13.5px; max-width:none; line-height:1.6; }
+  .page-head strong{ color:var(--ink); font-weight:600; }
+
+  .toolbar{ display:flex; align-items:center; justify-content:space-between; gap:var(--sp-4); flex-wrap:wrap; margin-bottom:var(--sp-4); }
+  .legend{ display:flex; flex-wrap:wrap; gap:var(--sp-5); font-size:12px; color:var(--text-2); }
+  .legend .li{ display:flex; align-items:center; gap:7px; }
+  .lg-sw{ display:inline-block; width:22px; height:12px; border-radius:3px; flex:none; }
+  .lg-free{ background:var(--av-hi); }
+  .lg-full{ background:transparent; position:relative; }
+  .lg-full::after{ content:""; position:absolute; left:3px; right:3px; top:50%; height:2px; transform:translateY(-50%); background:var(--muted); border-radius:1px; }
+  .lg-over{ background:var(--danger); }
+  .lg-off{ background:repeating-linear-gradient(-45deg,transparent 0 4px,var(--muted) 4px 5px); border:1px dashed var(--muted); }
+  /* controllo scorrimento settimane */
+  .tnav{ display:inline-flex; align-items:center; gap:6px; }
+  .tnav .lbl{ font-size:11px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; color:var(--text-2); margin-right:2px; }
+  .tbtn{ display:inline-flex; align-items:center; justify-content:center; gap:5px; height:34px; min-width:34px; padding:0 10px; border-radius:var(--r-sm); border:1px solid var(--line); background:var(--surface); color:var(--ink); font-family:inherit; font-size:12px; font-weight:600; cursor:pointer; }
+  .tbtn svg{ width:16px; height:16px; }
+  .tbtn:hover{ background:var(--surface-2); }
+  .tbtn:focus-visible{ outline:3px solid var(--focus); outline-offset:1px; }
+  /* selettore orizzonte temporale */
+  .tctl{ display:inline-flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .seg{ display:inline-flex; align-items:center; gap:2px; background:var(--surface-2); border-radius:var(--r-md); padding:3px; }
+  .seg .lbl{ font-size:11px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; color:var(--text-2); padding:0 8px 0 6px; }
+  .hbtn{ height:30px; padding:0 14px; border:0; background:transparent; color:var(--text-2); font-family:inherit; font-size:12.5px; font-weight:600; cursor:pointer; border-radius:var(--r-sm); }
+  .hbtn:hover{ color:var(--ink); }
+  .hbtn.is-on{ background:var(--surface); color:var(--ink); box-shadow:var(--shadow-sm); }
+  .hbtn:focus-visible{ outline:3px solid var(--focus); outline-offset:1px; }
+
+  /* BOARD — Gantt a due zone (info congelata + timeline scrollabile) */
+  .scroller{ overflow-x:auto; overflow-y:hidden; overscroll-behavior-x:contain; }
+  .board{ min-width:max-content; display:flex; flex-direction:column; gap:12px; }
+
+  /* Header agganciato alla finestra: scrolla la pagina, l'header si ferma in alto e
+     solo le righe worker continuano a scorrere sotto. Mirror orizzontale via JS. */
+  .thead{ position:sticky; top:var(--topbar-h,0px); z-index:25; overflow:hidden; background:var(--surface); margin-bottom:12px; transition:box-shadow .18s ease; }
+  .thead .hrow{ position:static; }
+  .thead.is-stuck{ box-shadow:0 10px 20px -12px rgba(20,19,34,.32); }
+  @keyframes wkfade{ from{opacity:.62} to{opacity:1} }
+  .board.wk-changed{ animation:wkfade .18s ease; }
+
+  .row, .hrow, .detail{ display:flex; align-items:stretch; }
+  .row[hidden], .detail[hidden]{ display:none; }
+  .hrow{ min-width:max-content; }
+
+  /* GRUPPO WORKER — riga (L1) + dettaglio (L2) come card unica */
+  .wgroup{ display:flex; flex-direction:column; position:relative; }
+  .wgroup[hidden]{ display:none; }
+  /* stato espanso: unifica gli angoli, divisorio interno e spina d'accento condivisa */
+  /* aperto: card unica, angoli esterni arrotondati conservati; giunto interno invisibile */
+  .wgroup.is-open .info{ border-radius:var(--r-lg) 0 0 0; }
+  .wgroup.is-open .lane{ border-radius:0 var(--r-lg) 0 0; }
+  .wgroup.is-open .d-info{ border-radius:0 0 0 var(--r-lg); }
+  .wgroup.is-open .d-lane{ border-radius:0 0 var(--r-lg) 0; }
+  /* stato aperto = stato "selected": il nome mantiene l'effetto hover (vedi .persona-btn) */
+
+  /* zona INFO (congelata a sinistra) */
+  .info{ position:sticky; left:0; z-index:6; width:var(--info-w); flex:none; display:grid;
+         grid-template-columns:224px 66px 112px 110px; align-items:center;
+         background:var(--surface-2); border-radius:var(--r-lg) 0 0 var(--r-lg);
+         transition:border-radius .28s cubic-bezier(.22,.61,.36,1); }
+  /* ombra della colonna congelata: solo sul bordo destro, senza sbavatura sopra/sotto
+     (così L1 e L2 impilati non mostrano nessuna cucitura orizzontale) */
+  .info::after, .detail .d-info::after{ content:""; position:absolute; top:0; right:0; width:16px; height:100%;
+         transform:translateX(100%); pointer-events:none;
+         background:linear-gradient(to right, rgba(20,19,34,.12), rgba(20,19,34,0)); }
+  .info > *{ padding:0 12px; min-width:0; }
+  /* durante l'hover del tooltip, il pannello info sale sopra le righe successive */
+  .row .info:has(.info-tip:hover), .row .info:has(.info-tip:focus-visible){ z-index:20; }
+  .info .col-cap, .info .col-lib, .info .col-fin{ padding:0 10px; }
+  /* fine accordo: più respiro a destra dal bordo della card */
+  .info .col-fin{ padding-right:18px; }
+  .hrow .info{ background:var(--head-bg); color:#fff; align-items:center; z-index:12; }
+  /* header: niente a-capo; "Persona" allineata all'avatar (12px col + 6px btn) */
+  .hrow .info .ih{ font-weight:600; font-size:12.5px; color:#fff; padding:0 12px 0 18px; white-space:nowrap; }
+  .hrow .info .ih.sub{ padding:0 8px; font-size:12px; }
+  .hrow .info .ih.sub:last-child{ padding-right:18px; }
+  .hrow, .row{ min-height:84px; }
+  .hrow{ min-height:76px; }
+
+  /* zona TIMELINE (scrollabile a destra) — fondo bianco per far risaltare le candele */
+  .lane{ display:grid; grid-template-columns:repeat(12, var(--wk)); background:var(--surface);
+         border-radius:0 var(--r-lg) var(--r-lg) 0; border-left:1px solid var(--grid);
+         transition:border-radius .28s cubic-bezier(.22,.61,.36,1); }
+  .hrow .lane{ background:var(--head-bg); border-left:1px solid var(--grid-dk); }
+  /* riga = card tracciata: stroke che àncora info↔timeline ora che la lane è bianca */
+  .row .info{ border:1px solid var(--line); border-right:0; }
+  .row .lane{ border:1px solid var(--line); border-left:1px solid var(--grid); }
+  .detail .d-info{ border:1px solid var(--line); border-top:0; border-right:0; }
+  .detail .d-lane{ border:1px solid var(--line); border-top:0; border-left:1px solid var(--grid); }
+  /* espansa: nessun bordo sul giunto interno riga↔dettaglio (card unica senza cuciture) */
+  .wgroup.is-open .row .info, .wgroup.is-open .row .lane{ border-bottom:0; }
+
+  .wk{ border-right:1px solid var(--grid); display:flex; align-items:flex-end; justify-content:center; position:relative; padding:0 0 16px; }
+  .wk:last-child{ border-right:0; }
+  .hrow .wk{ border-right:1px solid var(--grid-dk); flex-direction:column; align-items:center; justify-content:center; padding:0; color:rgba(255,255,255,.6); font-variant-numeric:tabular-nums; }
+  .hrow .wk .mo{ font-size:9px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:rgba(255,255,255,.82); min-height:12px; }
+  .hrow .wk .d{ font-size:11px; margin-top:1px; }
+  .hrow .wk.compact .d{ font-size:10px; }
+  .nowtag.mini{ font-size:0; padding:3px; line-height:0; }
+  .nowtag.mini::after{ content:""; display:block; width:5px; height:5px; border-radius:50%; background:#12122b; }
+  /* colonna OGGI: banda continua header + righe */
+  .wk.today{ background:var(--today-bg); }
+  .hrow .wk.today{ background:rgba(255,255,255,.12); color:#fff; }
+  .hrow .wk.today .mo{ color:var(--brand); font-weight:800; }
+  /* header: tick-settimana come selettore (radiogroup) */
+  .wkbtn{ appearance:none; -webkit-appearance:none; border:0; margin:0; background:transparent; color:inherit; font:inherit; cursor:pointer; width:100%; height:100%; }
+  .wkbtn:focus-visible{ outline:3px solid var(--focus); outline-offset:-3px; border-radius:6px; }
+  .hrow .wk.wkbtn:hover:not(.sel){ background:rgba(255,255,255,.08); }
+  /* colonna SELEZIONATA: banda incorniciata header + righe + L2 (encoding ridondante, non solo colore) */
+  .wk.sel:not(.today), .l2wk.sel:not(.today){ background:var(--sel-bg); }
+  .wk.sel, .l2wk.sel{ box-shadow:inset 1px 0 0 var(--sel-line), inset -1px 0 0 var(--sel-line); }
+  .hrow .wk.sel{ background:rgba(255,255,255,.18); box-shadow:none; }
+  .hrow .wk.sel .d{ color:#fff; font-weight:800; }
+  .hrow .wk.sel::after{ content:""; position:absolute; left:0; right:0; bottom:0; height:4px; border-radius:0; background:var(--sel-accent); }
+  .nowtag{ position:absolute; top:12px; left:50%; transform:translateX(-50%); font-size:8.5px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#12122b; background:var(--brand); padding:1px 6px; border-radius:var(--r-pill); }
+  /* cliff (fine accordo) */
+  .wk.cliff{ box-shadow:inset 2px 0 0 0 var(--danger); }
+
+  /* barre */
+  .gbar{ width:58%; max-width:16px; border-radius:3px 3px 0 0; background:var(--av-hi); }
+  .wk.md .gbar{ background:var(--av-md); }
+  .wk.lo .gbar{ background:var(--av-lo); }
+  .wk.full .gdash{ color:var(--muted); font-size:16px; font-weight:700; line-height:.6; }
+  .wk.over .gbar{ background:var(--danger); }
+  .wk.off{ background:repeating-linear-gradient(-45deg,transparent 0 5px,var(--line) 5px 6px); }
+  .wk.off .gbar{ display:none; }
+
+  /* INFO — contenuti */
+  .persona-btn{ display:flex; align-items:center; gap:10px; width:100%; background:transparent; border:0; padding:8px 6px; margin:0; cursor:pointer; text-align:left; border-radius:var(--r-sm); font-family:inherit; color:inherit; transition:background .18s ease; }
+  .persona-btn:hover{ background:rgba(20,19,34,.04); }
+  /* aperto = selected: mantiene l'effetto hover sul nome */
+  .persona-btn[aria-expanded="true"]{ background:rgba(20,19,34,.04); }
+  .persona-btn:focus-visible{ outline:3px solid var(--focus); outline-offset:1px; }
+  .p-av{ width:38px; height:38px; border-radius:var(--r-pill); flex:none; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; color:#20305e; background:var(--coin-bg); }
+  .p-txt{ min-width:0; display:flex; flex-direction:column; gap:1px; }
+  .p-name{ font-weight:600; font-size:15px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .p-role{ font-size:12px; color:var(--text-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .persona-btn .chev{ width:16px; height:16px; color:var(--muted); flex:none; margin-left:auto; transition:transform .18s ease; }
+  .persona-btn[aria-expanded="true"] .chev{ transform:rotate(90deg); color:var(--ink); }
+
+  .cap-val{ font-size:15px; font-weight:600; color:var(--ink); }
+  .cap-u{ display:block; font-size:11px; color:var(--muted); font-weight:500; }
+  .cap-off{ color:var(--muted); }
+
+  .kpi{ display:inline-flex; align-items:center; gap:3px; min-width:52px; justify-content:center; padding:7px 10px; border-radius:var(--r-sm); font-weight:700; font-size:15px; }
+  .kpi .u{ font-size:11px; font-weight:600; opacity:.75; }
+  .kpi svg{ width:13px; height:13px; }
+  .kpi.st-free{ background:var(--av-hi); color:var(--av-txt); }
+  .kpi.st-free.r-md{ background:var(--av-md); }
+  .kpi.st-free.r-lo{ background:var(--av-lo); }
+  .kpi.st-full{ background:var(--surface); color:var(--text-2); border:1px solid var(--line); font-size:14px; }
+  .kpi.st-over{ background:var(--danger-bg); color:var(--danger-text); }
+  .kpi.st-off{ background:transparent; color:var(--muted); font-weight:600; }
+  /* col "ore disponibili": KPI + affordance info con tooltip */
+  .libcell{ display:inline-flex; align-items:center; gap:5px; }
+  .info-tip{ position:relative; display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; padding:0; border:0; background:transparent; color:var(--muted); border-radius:var(--r-pill); cursor:pointer; flex:none; transition:background .15s ease, color .15s ease; }
+  .info-tip:hover{ color:var(--text-2); background:rgba(20,19,34,.06); }
+  .info-tip:focus-visible{ outline:3px solid var(--focus); outline-offset:1px; color:var(--text-2); }
+  .info-tip svg{ width:15px; height:15px; }
+  .tip{ position:fixed; left:0; top:0; transform:translate(-50%,-100%) translateY(4px);
+        min-width:150px; background:var(--ink); color:#fff; border-radius:var(--r-md); padding:10px 12px;
+        display:flex; flex-direction:column; gap:2px; box-shadow:0 -10px 26px -8px rgba(20,19,34,.45);
+        opacity:0; visibility:hidden; pointer-events:none; transition:opacity .16s ease, transform .16s ease; z-index:1200; }
+  .tip.is-open{ opacity:1; visibility:visible; transform:translate(-50%,-100%) translateY(0); }
+  .tip-h{ font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--brand); }
+  .tip-v{ font-size:13px; font-weight:600; color:#fff; white-space:nowrap; }
+  .tip-arrow{ position:absolute; top:100%; left:50%; transform:translateX(-50%); border:6px solid transparent; border-top-color:var(--ink); }
+
+  /* hover cella gant: affordance leggera (non tocca la colonna OGGI, già evidenziata) */
+  .wk[data-i], .l2wk[data-i]{ transition:background-color .12s ease; }
+  .wk[data-i]:not(.today):hover{ background-color:rgba(59,91,219,.07); }
+  .l2wk[data-i]:not(.today):hover{ background-color:rgba(59,91,219,.05); }
+
+  /* tooltip fluttuante condiviso per le celle del gant (L1 + L2) */
+  #gtip{ position:fixed; top:0; left:0; z-index:1000; pointer-events:none; min-width:184px; max-width:264px;
+         background:var(--ink); color:#fff; border-radius:var(--r-md); padding:11px 13px;
+         box-shadow:0 14px 34px -10px rgba(20,19,34,.55); opacity:0; visibility:hidden;
+         transform:translateY(4px); transition:opacity .14s ease, transform .14s ease; }
+  #gtip.show{ opacity:1; visibility:visible; transform:translateY(0); }
+  #gtip::after{ content:""; position:absolute; left:var(--gtip-arrow,50%); transform:translateX(-50%);
+                top:100%; border:7px solid transparent; border-top-color:var(--ink); }
+  #gtip.below::after{ top:auto; bottom:100%; border-top-color:transparent; border-bottom-color:var(--ink); }
+  /* tooltip nome completo: appare all'hover solo quando il nome è troncato */
+  #ntip{ position:fixed; left:0; top:0; z-index:1200; pointer-events:none; max-width:280px;
+         background:var(--ink); color:#fff; border-radius:var(--r-sm); padding:6px 10px; font-size:12.5px; font-weight:600;
+         white-space:nowrap; overflow:hidden; text-overflow:ellipsis; box-shadow:0 10px 26px -8px rgba(20,19,34,.45);
+         opacity:0; visibility:hidden; transform:translate(-50%,-100%) translateY(4px); transition:opacity .14s ease, transform .14s ease; }
+  #ntip.show{ opacity:1; visibility:visible; transform:translate(-50%,-100%) translateY(0); }
+  #ntip::after{ content:""; position:absolute; left:var(--ntip-arrow,50%); transform:translateX(-50%); top:100%;
+                border:6px solid transparent; border-top-color:var(--ink); }
+  #gtip .gtip-h{ font-size:12.5px; font-weight:700; color:#fff; line-height:1.25; }
+  #gtip .gtip-sub{ font-size:10px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--brand); margin-top:2px; margin-bottom:9px; }
+  #gtip .gtip-rows{ display:flex; flex-direction:column; gap:6px; font-size:12px; }
+  #gtip .gtip-row{ display:flex; align-items:center; justify-content:space-between; gap:18px; }
+  #gtip .gtip-row > span{ display:inline-flex; align-items:center; gap:7px; color:rgba(255,255,255,.68); min-width:0; }
+  #gtip .gtip-row > span > .lbl{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #gtip .gtip-row b{ font-weight:700; color:#fff; font-variant-numeric:tabular-nums; flex:none; }
+  #gtip .gtip-row.muted > span{ color:var(--muted); }
+  #gtip .gtip-sw{ width:9px; height:9px; border-radius:2px; flex:none; }
+  #gtip .gtip-div{ height:1px; background:rgba(255,255,255,.13); margin:3px 0; }
+  #gtip .gtip-state{ margin-top:1px; }
+  #gtip .gtip-dot{ width:9px; height:9px; border-radius:50%; flex:none; }
+  #gtip .gtip-dot.free{ background:var(--av-hi); }
+  #gtip .gtip-dot.full{ background:var(--muted); }
+  #gtip .gtip-dot.over{ background:var(--danger); }
+  #gtip .gtip-dot.off{ background:repeating-linear-gradient(-45deg,transparent 0 2px,var(--muted) 2px 3px); box-shadow:inset 0 0 0 1px var(--muted); }
+  #gtip b.free{ color:var(--brand); }
+  #gtip b.over{ color:#FF9B9B; }
+
+  /* col "fine accordo": testo neutro, mai rosso (il rosso è riservato agli errori) */
+  .fin-txt{ font-size:13px; color:var(--text-2); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .fin-none{ color:var(--muted); }
+
+  /* LIVELLO 2 — allineato alle stesse colonne-settimana */
+  .detail{ display:flex; }
+  .detail .d-info{ position:sticky; left:0; z-index:5; width:var(--info-w); flex:none; background:var(--surface-2);
+                   display:flex; flex-direction:column; justify-content:center;
+                   border-radius:var(--r-lg) 0 0 var(--r-lg); padding:20px 18px; }
+  .l2leg-items{ display:flex; flex-direction:column; gap:11px; }
+  .l2leg-items .it{ display:flex; align-items:center; gap:9px; font-size:12.5px; color:var(--ink); }
+  .l2leg-items .it .pj{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .l2leg-items .it .h{ margin-left:auto; padding-left:12px; color:var(--text-2); font-weight:600; font-variant-numeric:tabular-nums; flex:none; }
+  .l2sw{ width:12px; height:12px; border-radius:3px; flex:none; }
+  .l2sum{ margin-top:14px; padding-top:13px; border-top:1px solid var(--line); display:flex; flex-direction:column; gap:9px; }
+  .l2sum-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:12.5px; color:var(--text-2); }
+  .l2sum-row b{ font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
+  .l2sum-row.free b{ color:var(--brand-ink); }
+  .l2sum-row.over b{ color:var(--danger-text); }
+  .d-lane{ display:grid; grid-template-columns:repeat(12, var(--wk)); background:var(--surface);
+           border-radius:0 var(--r-lg) var(--r-lg) 0; border-left:1px solid var(--grid); padding-bottom:16px; }
+  .l2wk{ border-right:1px solid var(--grid); padding:16px 0 0; text-align:center; }
+  .l2wk:last-child{ border-right:0; }
+  .l2wk.today{ background:var(--today-bg); }
+  .l2wk.cliff{ box-shadow:inset 2px 0 0 0 var(--danger); }
+  .l2val{ font-size:11px; font-weight:800; height:14px; margin-bottom:5px; }
+  .l2val.free{ color:var(--av-txt); } .l2val.full{ color:var(--text-2); } .l2val.over{ color:var(--danger-text); } .l2val.muted{ color:var(--muted); }
+  .l2track{ position:relative; height:84px; margin:0 12px; border-radius:5px; background:linear-gradient(var(--line),var(--line)) bottom/100% 1px no-repeat; }
+  .d-lane.compact .l2track{ margin:0 4px; }
+  .d-lane.compact .l2seg, .d-lane.compact .l2free, .d-lane.compact .l2over{ left:2px; right:2px; }
+  .d-lane.compact .l2val{ font-size:9px; }
+  .d-lane.compact .l2date{ font-size:9px; }
+  .l2track.off{ background:repeating-linear-gradient(-45deg,transparent 0 5px,var(--muted) 5px 6px); opacity:.32; }
+  .l2seg{ position:absolute; left:6px; right:6px; border-radius:2px; }
+  .l2free{ position:absolute; left:6px; right:6px; background:var(--av-lo); }
+  .l2over{ position:absolute; left:6px; right:6px; opacity:.9; background:repeating-linear-gradient(-45deg,var(--danger-bg) 0 4px,var(--danger) 4px 5px); }
+  .l2cap{ position:absolute; left:2px; right:2px; height:2px; background:var(--ink); border-radius:2px; }
+  .l2cap.over{ background:var(--danger); }
+  .l2date{ margin-top:9px; font-size:10px; color:var(--muted); line-height:1.25; font-variant-numeric:tabular-nums; }
+  .l2date .m{ display:block; font-weight:700; font-size:9px; text-transform:uppercase; color:var(--text-2); min-height:11px; letter-spacing:.03em; }
+  .l2wk.today .l2date, .l2wk.today .l2date .m{ color:var(--today-ink); }
+
+  .empty{ padding:40px 18px; text-align:center; color:var(--text-2); font-size:14px; }
+  .foot{ padding:var(--sp-4) var(--sp-6); color:var(--text-2); font-size:12.5px; }
+  .foot strong{ color:var(--ink); }
+  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; } }
+  @media (max-width:900px){ .app{ grid-template-columns:1fr; } .sidebar{ display:none; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" aria-label="Navigazione DOT">
+    <div class="brand-logo">
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M4 12h16M4 18h7"/></svg></span>
+      <span class="brand-name">DOT<span>·ops</span></span>
+    </div>
+    <span class="nav-label">Operations</span>
+    <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Dashboard</a>
+    <a class="nav-item active" href="#" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v3M16 4v3M6.5 13h5M6.5 16.5h8"/></svg>Worker Gantt</a>
+    <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Progetti</a>
+    <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M15 11a3 3 0 1 0-2-5.2M3 20a6 6 0 0 1 12 0M15 14a6 6 0 0 1 6 6"/></svg>Team</a>
+    <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8M4.6 9a1.6 1.6 0 0 0-.3-1.8"/></svg>Impostazioni</a>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" id="q" placeholder="Cerca persona, ruolo o progetto…" aria-label="Cerca persona, ruolo o progetto" autocomplete="off" />
+      </div>
+      <div style="flex:1"></div>
+      <div class="me"><span class="who"><b>Elena Fabbri</b><br><small>Sales Ops</small></span><span class="avatar" aria-hidden="true">EF</span></div>
+    </header>
+
+    <div class="content">
+      <div class="page-head">
+        <h1>Worker Gantt</h1>
+        <p><strong>Capacità libera</strong> da vendere per worker, settimana per settimana.</p>
+      </div>
+
+      <div class="toolbar">
+        <div class="legend" aria-hidden="true">
+          <span class="li"><span class="lg-sw lg-free"></span> Capacità libera (da vendere)</span>
+          <span class="li"><span class="lg-sw lg-full"></span> Pieno</span>
+          <span class="li"><span class="lg-sw lg-over"></span> Over-allocato</span>
+          <span class="li"><span class="lg-sw lg-off"></span> Accordo non attivo</span>
+        </div>
+        <div class="tctl">
+          <button class="filt" id="availOnly" type="button" aria-pressed="false" aria-label="Mostra solo i worker con ore libere nella settimana selezionata">
+            <svg class="filt-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+            Solo disponibili
+          </button>
+          <div class="seg" role="group" aria-label="Orizzonte temporale">
+            <span class="lbl">Orizzonte</span>
+            <button class="hbtn is-on" type="button" data-h="12" aria-pressed="true">3 mesi</button>
+            <button class="hbtn" type="button" data-h="26" aria-pressed="false">6 mesi</button>
+            <button class="hbtn" type="button" data-h="52" aria-pressed="false">Anno</button>
+          </div>
+          <button class="tbtn" id="navToday" type="button" aria-label="Torna alla settimana corrente"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Oggi</button>
+        </div>
+      </div>
+
+      <div class="thead" id="thead"></div>
+      <div class="scroller" id="scroller">
+        <div class="board" id="board" role="table" aria-label="Allocazione futura del team nelle prossime 12 settimane"></div>
+        <div class="empty" id="empty" hidden>Nessun worker corrisponde alla ricerca.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const W=52; // orizzonte dati: un anno intero (settimane)
+/* pw = costruisce un array di W settimane da segmenti [valore, ripetizioni]; riempie con l'ultimo valore */
+function pw(...segs){ const a=[]; for(const [v,c] of segs){ for(let k=0;k<c;k++) a.push(v); } const last=segs.length?segs[segs.length-1][0]:0; while(a.length<W) a.push(last); return a.slice(0,W); }
+const DATA={
+  horizonStartISO:"2026-08-03", weeks:W, currentWeek:2,
+  workers:[
+    { id:"w2", name:"Luca Bianchi", role:"Backend Engineer", agreementEndISO:"2026-09-13",
+      capacityPerWeek:pw([40,6],[0,W]),
+      allocations:[
+        {project:"Portale Clienti",hoursPerWeek:pw([20,6],[0,W])},
+        {project:"CRM Vendite",hoursPerWeek:pw([10,6],[0,W])}
+      ] },
+    { id:"w1", name:"Maria Rossi", role:"Frontend Engineer", agreementEndISO:"2027-06-30",
+      capacityPerWeek:pw([40,W]),
+      allocations:[
+        {project:"Portale Clienti",hoursPerWeek:pw([25,6],[20,20],[15,W])},
+        {project:"CRM Vendite",hoursPerWeek:pw([15,4],[10,8],[5,8],[0,W])}
+      ] },
+    { id:"w3", name:"Sara Verdi", role:"Full-stack Engineer", agreementEndISO:"2027-09-30",
+      capacityPerWeek:pw([40,W]),
+      allocations:[
+        {project:"Portale Clienti",hoursPerWeek:pw([30,6],[25,2],[20,W])},
+        {project:"CRM Vendite",hoursPerWeek:pw([10,2],[20,3],[10,25],[0,W])}
+      ] },
+    { id:"w4", name:"Paolo Neri", role:"Data Engineer", agreementEndISO:"2027-03-31",
+      capacityPerWeek:pw([40,W]),
+      allocations:[{project:"Data Warehouse",hoursPerWeek:pw([10,W])}] },
+    { id:"w5", name:"Giulia Costa", role:"UX Designer", agreementEndISO:"2027-12-31",
+      capacityPerWeek:pw([20,5],[40,W]),
+      allocations:[{project:"App Mobile",hoursPerWeek:pw([15,5],[20,W])}] },
+    { id:"w6", name:"Marco Gialli", role:"DevOps Engineer", agreementEndISO:"2027-08-31",
+      capacityPerWeek:pw([40,W]),
+      allocations:[{project:"Infrastruttura Cloud",hoursPerWeek:pw([40,40],[20,W])}] },
+    { id:"w7", name:"Elena Fontana", role:"Product Designer", agreementEndISO:"2027-11-30",
+      capacityPerWeek:pw([40,W]),
+      allocations:[
+        {project:"Design System",hoursPerWeek:pw([20,10],[15,W])},
+        {project:"App Mobile",hoursPerWeek:pw([10,8],[5,W])}
+      ] },
+    { id:"w8", name:"Davide Marchetti", role:"Backend Engineer", agreementEndISO:"2027-05-31",
+      capacityPerWeek:pw([40,W]),
+      allocations:[{project:"Integrazione ERP",hoursPerWeek:pw([40,12],[30,W])}] },
+    { id:"w9", name:"Chiara Ferrari", role:"QA Engineer", agreementEndISO:"2028-02-28",
+      capacityPerWeek:pw([32,W]),
+      allocations:[
+        {project:"Portale Clienti",hoursPerWeek:pw([18,W])},
+        {project:"E-commerce",hoursPerWeek:pw([10,6],[6,W])}
+      ] },
+    { id:"w10", name:"Simone Greco", role:"Frontend Engineer", agreementEndISO:"2026-11-01",
+      capacityPerWeek:pw([40,13],[0,W]),
+      allocations:[
+        {project:"Sito Corporate",hoursPerWeek:pw([30,13],[0,W])},
+        {project:"Design System",hoursPerWeek:pw([10,13],[0,W])}
+      ] },
+    { id:"w11", name:"Francesca Russo", role:"Data Scientist", agreementEndISO:"2027-12-31",
+      capacityPerWeek:pw([40,W]),
+      allocations:[
+        {project:"Piattaforma Analytics",hoursPerWeek:pw([25,W])},
+        {project:"Chatbot AI",hoursPerWeek:pw([20,4],[15,10],[10,W])}
+      ] },
+    { id:"w12", name:"Alessandro Conti", role:"DevOps Engineer", agreementEndISO:"2027-09-30",
+      capacityPerWeek:pw([40,W]),
+      allocations:[{project:"Migrazione Cloud",hoursPerWeek:pw([15,W])}] },
+    { id:"w13", name:"Martina Esposito", role:"UX Researcher", agreementEndISO:"2027-07-31",
+      capacityPerWeek:pw([24,W]),
+      allocations:[
+        {project:"App Mobile",hoursPerWeek:pw([12,W])},
+        {project:"Design System",hoursPerWeek:pw([6,8],[4,W])}
+      ] },
+    { id:"w14", name:"Giovanni Ricci", role:"Solutions Architect", agreementEndISO:"2028-06-30",
+      capacityPerWeek:pw([40,W]),
+      allocations:[
+        {project:"Integrazione ERP",hoursPerWeek:pw([20,W])},
+        {project:"Migrazione Cloud",hoursPerWeek:pw([10,10],[5,W])}
+      ] }
+  ]
+};
+
+/* VIEW = quante settimane mostrare e con che larghezza colonna (l'orizzonte dati resta W=52) */
+const VIEW_PRESETS={ 12:{wk:76}, 26:{wk:46}, 52:{wk:26} };
+let VIEW={ weeks:12, wk:76 };
+function applyView(h){ const p=VIEW_PRESETS[h]||VIEW_PRESETS[12]; VIEW.weeks=h; VIEW.wk=p.wk; document.documentElement.style.setProperty("--wk",p.wk+"px"); }
+const gridCols=()=>`grid-template-columns:repeat(${VIEW.weeks},var(--wk))`;
+
+/* SEL = settimana selezionata (indice assoluto nell'orizzonte visibile).
+   Tutto il pannello congelato, il filtro e l'ordinamento si riferiscono a SEL. */
+let SEL=DATA.currentWeek;
+function clampSel(){ if(SEL<0||SEL>=VIEW.weeks) SEL=DATA.currentWeek; }
+function freeAt(w,i){ const s=cellState(w,i); return s.kind==="free"?s.free:0; }
+function isAvailAt(w,i){ return cellState(w,i).kind==="free"; } // disponibile = free>0 nella settimana
+function matchesSearch(w){ const q=(document.getElementById("q")?.value||"").trim().toLowerCase();
+  if(!q) return true; return (w.name+" "+w.role+" "+w.allocations.map(a=>a.project).join(" ")).toLowerCase().includes(q); }
+
+const REF=40;
+function bookedAt(w,i){ return w.allocations.reduce((s,a)=>s+(a.hoursPerWeek[i]||0),0); }
+function cellState(w,i){
+  const cap=w.capacityPerWeek[i];
+  if(cap==null||cap===0) return {kind:"off"};
+  const booked=bookedAt(w,i), free=cap-booked;
+  if(free<0) return {kind:"over",cap,excess:-free};
+  if(free===0) return {kind:"full",cap};
+  return {kind:"free",cap,free,ratio:free/cap};
+}
+const ramp=r=> r>=0.66?"":r>=0.33?"r-md":"r-lo";
+const sramp=r=> r>=0.66?"":r>=0.33?"md":"lo";
+
+const MESI=["Gen","Feb","Mar","Apr","Mag","Giu","Lug","Ago","Set","Ott","Nov","Dic"];
+const MESI_L=["gennaio","febbraio","marzo","aprile","maggio","giugno","luglio","agosto","settembre","ottobre","novembre","dicembre"];
+function weekDate(i){ const d=new Date(DATA.horizonStartISO+"T00:00:00"); d.setDate(d.getDate()+i*7); return d; }
+function weekEnd(i){ const d=weekDate(i); d.setDate(d.getDate()+6); return d; }
+function fmtDM(iso){ const d=new Date(iso+"T00:00:00"); return d.getDate()+" "+MESI[d.getMonth()]; }
+function fmtDMY(iso){ const d=new Date(iso+"T00:00:00"); return d.getDate()+" "+MESI[d.getMonth()]+" "+d.getFullYear(); }
+function fmtDMYL(iso){ const d=new Date(iso+"T00:00:00"); return d.getDate()+" "+MESI_L[d.getMonth()]+" "+d.getFullYear(); }
+function fmtWeek(i){ const d=weekDate(i); return d.getDate()+" "+MESI[d.getMonth()]; }
+function rangeLabel(i){ return weekDate(i).getDate()+"–"+weekEnd(i).getDate(); }
+function ariaRange(i){ const s=weekDate(i),e=weekEnd(i); return s.getMonth()===e.getMonth()?`${s.getDate()}–${e.getDate()} ${MESI_L[s.getMonth()]}`:`${s.getDate()} ${MESI_L[s.getMonth()]} – ${e.getDate()} ${MESI_L[e.getMonth()]}`; }
+function isCliffWeek(w,i){ return (w.capacityPerWeek[i]===0 && i>0 && w.capacityPerWeek[i-1]>0 && !!w.agreementEndISO); }
+
+const PROJ_COLORS={ "Portale Clienti":"#5B7CE0","CRM Vendite":"#9B6FD6","Data Warehouse":"#2FA98E","App Mobile":"#D96BA6","Infrastruttura Cloud":"#6E86A8",
+  "Design System":"#E0894F","Integrazione ERP":"#4FB0C0","E-commerce":"#C05B7C","Sito Corporate":"#7FA24F","Piattaforma Analytics":"#3FA0D6","Chatbot AI":"#A86FD6","Migrazione Cloud":"#C0A24F" };
+const PROJ_FB=["#5B7CE0","#9B6FD6","#2FA98E","#D96BA6","#6E86A8","#E0A23B"]; let _pf=0; const _pm={};
+function projColor(n){ if(PROJ_COLORS[n]) return PROJ_COLORS[n]; if(!_pm[n])_pm[n]=PROJ_FB[_pf++%PROJ_FB.length]; return _pm[n]; }
+
+/* Icone: solo dove rinforzano un concetto/azione */
+const ICO={
+  warn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>',
+  flag:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V4s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22V4"/></svg>',
+  chev:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>',
+  info:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>'
+};
+function initials(n){ return n.split(" ").map(p=>p[0]).slice(0,2).join("").toUpperCase(); }
+
+/* KPI libero ora */
+function kpi(st){
+  if(st.kind==="off")  return `<span class="kpi st-off" aria-hidden="true">—</span>`;
+  if(st.kind==="over") return `<span class="kpi st-over" aria-hidden="true">${st.excess}</span>`;
+  if(st.kind==="full") return `<span class="kpi st-full" aria-hidden="true">0</span>`;
+  return `<span class="kpi st-free ${ramp(st.ratio)}" aria-hidden="true">${st.free}</span>`;
+}
+function kpiAria(w,st){
+  if(st.kind==="off")  return `${w.name}, disponibilità: nessuna capacità`;
+  if(st.kind==="over") return `${w.name}, disponibilità: sovra-allocazione di ${st.excess} ore`;
+  if(st.kind==="full") return `${w.name}, disponibilità: capacità piena, 0 ore libere`;
+  return `${w.name}, disponibilità: ${st.free} ore libere`;
+}
+function firstFreeFrom(w,from){ for(let i=from;i<DATA.weeks;i++){ const s=cellState(w,i); if(s.kind==="free") return i; } return null; }
+
+/* HEADER Gantt: info-head + asse date (stesse colonne dei bar) */
+function headHtml(){
+  const compact=VIEW.wk<48;
+  let ticks="";
+  for(let i=0;i<VIEW.weeks;i++){
+    const d=weekDate(i), showM=i===0||weekDate(i-1).getMonth()!==d.getMonth();
+    const today=i===DATA.currentWeek?" today":"";
+    const sel=i===SEL?" sel":"";
+    const lbl=compact?String(d.getDate()):rangeLabel(i);
+    const moTxt=today?"Oggi":(showM?MESI[d.getMonth()]:"&nbsp;");
+    ticks+=`<button type="button" class="wk wkbtn${today}${sel}${compact?' compact':''}" role="radio" aria-checked="${i===SEL}" tabindex="${i===SEL?0:-1}" data-i="${i}" aria-label="Settimana ${ariaRange(i)}${today?', settimana corrente':''}"><span class="mo">${moTxt}</span><span class="d">${lbl}</span></button>`;
+  }
+  return `<div class="hrow">`+
+    `<div class="info" aria-hidden="true">`+
+      `<div class="ih">Persona</div>`+
+      `<div class="ih sub">Capacità</div>`+
+      `<div class="ih sub">Ore disponibili</div>`+
+      `<div class="ih sub">Fine accordo</div>`+
+    `</div>`+
+    `<div class="lane wk-select" role="radiogroup" aria-label="Seleziona la settimana da analizzare" style="${gridCols()}">${ticks}</div>`+
+  `</div>`;
+}
+
+/* barre timeline */
+function laneHtml(w){
+  let cells="";
+  for(let i=0;i<VIEW.weeks;i++){
+    const cap=w.capacityPerWeek[i];
+    const today=i===DATA.currentWeek?" today":"";
+    const sel=i===SEL?" sel":"";
+    const cliff=isCliffWeek(w,i)?" cliff":"";
+    const dset=`data-w="${w.id}" data-i="${i}"`;
+    if(cap==null||cap===0){
+      cells+=`<div class="wk off${today}${sel}${cliff}" ${dset} role="img" aria-label="${ariaRange(i)}: accordo non attivo"><span class="gbar"></span></div>`;
+      continue;
+    }
+    const st=cellState(w,i);
+    if(st.kind==="full"){
+      // pieno = nessuna disponibilità: trattino al posto della candela (meno carico cognitivo)
+      cells+=`<div class="wk full${today}${sel}${cliff}" ${dset} role="img" aria-label="${ariaRange(i)}: pieno · 0h libere"><span class="gdash" aria-hidden="true">—</span></div>`;
+      continue;
+    }
+    let h,cls,lab;
+    if(st.kind==="over"){ h=Math.min(48,(st.excess/REF)*48+10); cls="over"; lab=`sovra-allocato di ${st.excess}h`; }
+    else { h=Math.max(5,(st.free/REF)*48); cls=sramp(st.ratio); lab=`${st.free}h libere`; }
+    cells+=`<div class="wk ${cls}${today}${sel}${cliff}" ${dset} role="img" aria-label="${ariaRange(i)}: ${lab}"><span class="gbar" style="height:${h.toFixed(1)}px"></span></div>`;
+  }
+  return `<div class="lane" style="${gridCols()}">${cells}</div>`;
+}
+
+/* riga worker (info congelata + timeline) */
+function rowHtml(w){
+  const cw=SEL, detailId="detail-"+w.id;
+  const capNow=w.capacityPerWeek[cw];
+  const capHtml=(capNow==null||capNow===0)?`<span class="cap-off">—</span>`:`<span class="cap-val tnum">${capNow}</span><span class="cap-u">h/sett</span>`;
+  const stNow=cellState(w,cw);
+  let tip="";
+  if(stNow.kind!=="free"){
+    const ff=firstFreeFrom(w,cw+1);
+    const val=ff!=null?fmtWeek(ff):null;
+    const tipBody=val
+      ? `<span class="tip-h">Prima disponibilità</span><span class="tip-v">${val}</span>`
+      : `<span class="tip-h">Nessuna disponibilità</span><span class="tip-v">nel periodo visualizzato</span>`;
+    const tipAria=val?`${w.name}: prima disponibilità il ${val}`:`${w.name}: nessuna disponibilità nel periodo visualizzato`;
+    tip=`<button type="button" class="info-tip" aria-label="${tipAria}">${ICO.info}<span class="tip" role="tooltip" aria-hidden="true">${tipBody}<span class="tip-arrow"></span></span></button>`;
+  }
+  const fin= w.agreementEndISO
+    ? `<span class="fin-txt" aria-label="Fine accordo: ${fmtDMYL(w.agreementEndISO)}">${fmtDMY(w.agreementEndISO)}</span>`
+    : `<span class="fin-none" aria-label="Accordo a tempo indeterminato">—</span>`;
+  return `<div class="row" role="row" data-w="${w.id}">`+
+    `<div class="info">`+
+      `<div class="col-persona"><button type="button" class="persona-btn" aria-expanded="false" aria-controls="${detailId}" aria-label="Mostra il dettaglio per progetto di ${w.name}">`+
+        `<span class="p-av" aria-hidden="true">${initials(w.name)}</span>`+
+        `<span class="p-txt"><span class="p-name">${w.name}</span><span class="p-role" title="${w.role}">${w.role}</span></span>`+
+        `<span class="chev" aria-hidden="true">${ICO.chev}</span></button></div>`+
+      `<div class="col-cap" aria-label="${w.name}, capacità: ${(capNow==null||capNow===0)?'nessuna':capNow+' ore a settimana'}">${capHtml}</div>`+
+      `<div class="col-lib" aria-label="${kpiAria(w,stNow)}"><span class="libcell">${kpi(stNow)}${tip}</span></div>`+
+      `<div class="col-fin">${fin}</div>`+
+    `</div>`+
+    laneHtml(w)+
+  `</div>`;
+}
+
+/* LIVELLO 2 (stesse colonne) */
+const L2_TRACK=84, L2_MAX=50, L2_PX=L2_TRACK/L2_MAX;
+function detailHtml(w){
+  const cw=SEL, detailId="detail-"+w.id;
+  const items=w.allocations.map(a=>`<div class="it"><span class="l2sw" style="background:${projColor(a.project)}"></span><span class="pj">${a.project}</span><span class="h">${a.hoursPerWeek[cw]||0}h</span></div>`).join("");
+  const stNow=cellState(w,cw), capNow=w.capacityPerWeek[cw]||0;
+  const bookedNow=w.allocations.reduce((s,a)=>s+(a.hoursPerWeek[cw]||0),0);
+  const freeRow = stNow.kind==="over"
+      ? `<div class="l2sum-row over"><span>Over-allocato</span><b>+${stNow.excess}h</b></div>`
+      : `<div class="l2sum-row${stNow.kind==="free"?' free':''}"><span>Ore libere</span><b>${stNow.kind==="full"?0:stNow.free}h</b></div>`;
+  const dInfo=`<div class="d-info">`+
+    `<div class="l2leg-items">${items||'<div class="it" style="color:var(--muted)">Nessun progetto</div>'}</div>`+
+    `<div class="l2sum"><div class="l2sum-row"><span>Totale allocato</span><b>${bookedNow}h / ${capNow}h</b></div>${freeRow}</div></div>`;
+  const compact=VIEW.wk<48;
+  let wks=""; let prevM=null;
+  for(let i=0;i<VIEW.weeks;i++){
+    const cap=w.capacityPerWeek[i], d=weekDate(i), showM=d.getMonth()!==prevM; prevM=d.getMonth();
+    const today=i===DATA.currentWeek?" today":"";
+    const sel=i===SEL?" sel":"";
+    const cliff=isCliffWeek(w,i)?" cliff":"";
+    const dateHtml=`<div class="l2date"><span class="m">${showM?MESI[d.getMonth()]:"&nbsp;"}</span>${compact?d.getDate():rangeLabel(i)}</div>`;
+    if(cap==null||cap===0){ wks+=`<div class="l2wk${today}${sel}${cliff}" data-w="${w.id}" data-i="${i}"><div class="l2val muted">—</div><div class="l2track off" role="img" aria-label="${w.name}, ${ariaRange(i)}: accordo non attivo"></div>${dateHtml}</div>`; continue; }
+    const st=cellState(w,i); let cum=0, seg="", parts=[];
+    w.allocations.forEach(a=>{ const h=a.hoursPerWeek[i]||0; if(h<=0)return; seg+=`<div class="l2seg" style="bottom:${(cum*L2_PX).toFixed(2)}px;height:${(h*L2_PX).toFixed(2)}px;background:${projColor(a.project)}"></div>`; cum+=h; parts.push(`${a.project} ${h}h`); });
+    const booked=cum;
+    if(booked<cap) seg+=`<div class="l2free" style="bottom:${(booked*L2_PX).toFixed(2)}px;height:${((cap-booked)*L2_PX).toFixed(2)}px"></div>`;
+    if(booked>cap) seg+=`<div class="l2over" style="bottom:${(cap*L2_PX).toFixed(2)}px;height:${((booked-cap)*L2_PX).toFixed(2)}px"></div>`;
+    seg+=`<div class="l2cap${booked>cap?' over':''}" style="bottom:${(cap*L2_PX).toFixed(2)}px"></div>`;
+    let val,vc,tail;
+    if(st.kind==="over"){ val="+"+st.excess; vc="over"; tail=`sovra-allocato di ${st.excess} ore`; }
+    else if(st.kind==="full"){ val="0"; vc="full"; tail="capacità piena"; }
+    else { val=st.free; vc="free "+ramp(st.ratio); tail=`${st.free} ore libere`; }
+    const aria=`${w.name}, ${ariaRange(i)}. Capacità ${cap} ore. ${parts.join(", ")||"nessuna allocazione"}. ${tail}.`;
+    wks+=`<div class="l2wk${today}${sel}${cliff}" data-w="${w.id}" data-i="${i}"><div class="l2val ${vc}">${val}</div><div class="l2track" role="img" aria-label="${aria}">${seg}</div>${dateHtml}</div>`;
+  }
+  return `<div class="detail" id="${detailId}" role="row" hidden>${dInfo}<div class="d-lane${compact?' compact':''}" style="${gridCols()}">${wks}</div></div>`;
+}
+
+/* TOOLTIP celle gant (L1 + L2): un'unica card fluttuante, guidata da event-delegation */
+function weekHdr(i){
+  const s=weekDate(i), e=weekEnd(i), y=e.getFullYear();
+  return s.getMonth()===e.getMonth()
+    ? `${s.getDate()}–${e.getDate()} ${MESI[s.getMonth()]} ${y}`
+    : `${s.getDate()} ${MESI[s.getMonth()]} – ${e.getDate()} ${MESI[e.getMonth()]} ${y}`;
+}
+function gtipStateRow(st){
+  if(st.kind==="over") return `<span><span class="gtip-dot over"></span>Over-allocato</span><b class="over">+${st.excess}h</b>`;
+  if(st.kind==="full") return `<span><span class="gtip-dot full"></span>Pieno</span><b>0h liberi</b>`;
+  return `<span><span class="gtip-dot free"></span>Disponibili</span><b class="free">${st.free}h</b>`;
+}
+function gtipHead(w,i){ return `<div class="gtip-h">${weekHdr(i)}</div><div class="gtip-sub">${w.name}</div>`; }
+function gtipOff(w,i){ return gtipHead(w,i)+`<div class="gtip-rows"><div class="gtip-row gtip-state"><span><span class="gtip-dot off"></span>Accordo non attivo</span></div></div>`; }
+function gtipL1(w,i){
+  const cap=w.capacityPerWeek[i];
+  if(cap==null||cap===0) return gtipOff(w,i);
+  const st=cellState(w,i), booked=bookedAt(w,i);
+  return gtipHead(w,i)+`<div class="gtip-rows">`+
+    `<div class="gtip-row"><span class="lbl">Capacità</span><b>${cap}h</b></div>`+
+    `<div class="gtip-row"><span class="lbl">Allocate</span><b>${booked}h</b></div>`+
+    `<div class="gtip-div"></div>`+
+    `<div class="gtip-row gtip-state">${gtipStateRow(st)}</div>`+
+  `</div>`;
+}
+function gtipL2(w,i){
+  const cap=w.capacityPerWeek[i];
+  if(cap==null||cap===0) return gtipOff(w,i);
+  const st=cellState(w,i), booked=bookedAt(w,i);
+  let rows="";
+  w.allocations.forEach(a=>{ const h=a.hoursPerWeek[i]||0; if(h<=0) return;
+    rows+=`<div class="gtip-row"><span><span class="gtip-sw" style="background:${projColor(a.project)}"></span><span class="lbl">${a.project}</span></span><b>${h}h</b></div>`; });
+  if(!rows) rows=`<div class="gtip-row muted"><span class="lbl">Nessuna allocazione</span></div>`;
+  return gtipHead(w,i)+`<div class="gtip-rows">`+rows+
+    `<div class="gtip-div"></div>`+
+    `<div class="gtip-row"><span class="lbl">Allocate</span><b>${booked}h / ${cap}h</b></div>`+
+    `<div class="gtip-row gtip-state">${gtipStateRow(st)}</div>`+
+  `</div>`;
+}
+let GTIP=null, gtipCell=null;
+function hideGtip(){ if(GTIP){ GTIP.classList.remove("show"); } gtipCell=null; }
+let NTIP=null;
+function hideNtip(){ if(NTIP) NTIP.classList.remove("show"); }
+function showNtip(el){
+  if(!NTIP) return;
+  NTIP.textContent=el.textContent;
+  NTIP.classList.add("show");
+  const r=el.getBoundingClientRect(), g=NTIP.getBoundingClientRect(), gap=8;
+  const cx=r.left+r.width/2, half=g.width/2;
+  const left=Math.max(8+half,Math.min(cx,window.innerWidth-8-half));
+  NTIP.style.left=Math.round(left)+"px"; NTIP.style.top=Math.round(r.top-gap)+"px";
+  const ax=Math.max(12,Math.min(cx-(left-half),g.width-12)); // freccia puntata al centro del nome
+  NTIP.style.setProperty("--ntip-arrow",Math.round(ax)+"px");
+}
+function setupNameTips(){
+  NTIP=document.createElement("div"); NTIP.id="ntip"; NTIP.setAttribute("role","tooltip"); NTIP.setAttribute("aria-hidden","true");
+  document.body.appendChild(NTIP);
+  document.getElementById("scroller").addEventListener("scroll",hideNtip,{passive:true});
+  window.addEventListener("scroll",hideNtip,{passive:true});
+}
+function placeGtip(cell){
+  // àncora la candela vera (barra L1 o track L2), non l'intera cella alta
+  let cand=cell.querySelector(".l2track, .gbar, .gdash")||cell;
+  let r=cand.getBoundingClientRect();
+  // celle "off" (accordo non attivo): la .gbar è display:none → rect a zero.
+  // ripiega sulla cella intera per non spedire il tooltip in alto a sinistra.
+  if(!r.width||!r.height){ cand=cell; r=cand.getBoundingClientRect(); }
+  const g=GTIP.getBoundingClientRect();
+  const cx=r.left+r.width/2, gap=11;
+  let left=cx-g.width/2;
+  let top=r.top-g.height-gap;                                   // parte da sopra la candela
+  let below=false;
+  if(top<8){ top=r.bottom+gap; below=true; }                   // ribalta sotto se non c'è spazio sopra
+  left=Math.max(8,Math.min(left,window.innerWidth-g.width-8)); // resta dentro il viewport
+  GTIP.style.left=Math.round(left)+"px"; GTIP.style.top=Math.round(top)+"px";
+  GTIP.classList.toggle("below",below);
+  const ax=Math.max(14,Math.min(cx-left,g.width-14));           // freccia puntata al centro della candela
+  GTIP.style.setProperty("--gtip-arrow",Math.round(ax)+"px");
+}
+function setupGtip(){
+  GTIP=document.createElement("div"); GTIP.id="gtip"; GTIP.setAttribute("role","tooltip");
+  document.body.appendChild(GTIP);
+  const board=document.getElementById("board");
+  board.addEventListener("pointermove",e=>{
+    if(e.pointerType!=="mouse") return;
+    const cell=e.target.closest(".wk[data-i], .l2wk[data-i]");
+    if(cell===gtipCell){ return; }
+    gtipCell=cell;
+    if(!cell){ hideGtip(); return; }
+    const w=DATA.workers.find(x=>x.id===cell.dataset.w); if(!w){ hideGtip(); return; }
+    const i=+cell.dataset.i;
+    GTIP.innerHTML = cell.classList.contains("l2wk") ? gtipL2(w,i) : gtipL1(w,i);
+    GTIP.classList.add("show");
+    placeGtip(cell);
+  });
+  board.addEventListener("pointerleave",hideGtip);
+  document.getElementById("scroller").addEventListener("scroll",hideGtip,{passive:true});
+  window.addEventListener("scroll",hideGtip,{passive:true});
+}
+
+/* RENDER */
+function render(){
+  hideGtip();
+  /* conserva quali righe erano espanse in L2, così cambio-settimana/orizzonte non le richiude */
+  const open=[...document.querySelectorAll(".wgroup.is-open")].map(g=>g.dataset.w);
+  document.getElementById("thead").innerHTML=headHtml();
+  let html="";
+  DATA.workers.forEach(w=>{ html+=`<div class="wgroup" role="rowgroup" data-w="${w.id}">`+rowHtml(w)+detailHtml(w)+`</div>`; });
+  document.getElementById("board").innerHTML=html;
+  open.forEach(id=>{ const g=document.querySelector(`.wgroup[data-w="${id}"]`); if(!g) return;
+    g.classList.add("is-open");
+    const b=g.querySelector(".persona-btn"); if(b) b.setAttribute("aria-expanded","true");
+    const d=document.getElementById("detail-"+id); if(d) d.hidden=false; });
+  setupInteractions();
+  syncHead();
+}
+function focusWeekBtn(i){ const b=document.querySelector(`#thead .wkbtn[data-i="${i}"]`); if(b){ b.focus({preventScroll:true}); ensureWeekVisible(i); } }
+function ensureWeekVisible(i){
+  const sc=document.getElementById("scroller"); if(!sc) return;
+  const wk=parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--wk"))||VIEW.wk;
+  const smooth=window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth";
+  const left=i*wk, right=left+wk, vl=sc.scrollLeft, vr=vl+sc.clientWidth;
+  if(left<vl) sc.scrollTo({left:Math.max(0,left-wk),behavior:smooth});
+  else if(right>vr) sc.scrollTo({left:right-sc.clientWidth+wk,behavior:smooth});
+}
+function selectWeek(i,{focus=false}={}){
+  i=Math.max(0,Math.min(VIEW.weeks-1,i));
+  if(i===SEL){ if(focus) focusWeekBtn(i); return; }
+  SEL=i;
+  render();
+  applySearch();
+  const bd=document.getElementById("board");
+  if(bd && !window.matchMedia("(prefers-reduced-motion: reduce)").matches){ bd.classList.remove("wk-changed"); void bd.offsetWidth; bd.classList.add("wk-changed"); }
+  if(focus) focusWeekBtn(SEL); else ensureWeekVisible(SEL);
+}
+function setupWeekSelect(){
+  const th=document.getElementById("thead");
+  th.addEventListener("click",e=>{ const b=e.target.closest(".wkbtn"); if(!b) return; selectWeek(+b.dataset.i,{focus:true}); });
+  th.addEventListener("keydown",e=>{
+    const b=e.target.closest(".wkbtn"); if(!b) return;
+    const i=+b.dataset.i; let n=null;
+    switch(e.key){
+      case "ArrowRight": case "ArrowDown": n=i+1; break;
+      case "ArrowLeft":  case "ArrowUp":   n=i-1; break;
+      case "Home": n=0; break;
+      case "End":  n=VIEW.weeks-1; break;
+      case " ": case "Enter": e.preventDefault(); selectWeek(i,{focus:true}); return;
+      default: return;
+    }
+    e.preventDefault(); selectWeek(Math.max(0,Math.min(VIEW.weeks-1,n)),{focus:true});
+  });
+}
+
+/* completa l'animazione in modo garantito: transitionend + timer di fallback
+   (se il transitionend non scatta, il timer finalizza comunque lo stato) */
+function armFinish(det,dur,fn){
+  const done=e=>{ if(e && e.propertyName!=="max-height") return; run(); };
+  const run=()=>{ det.removeEventListener("transitionend",done); clearTimeout(det._t); det._cleanup=null; fn(); };
+  det.addEventListener("transitionend",done);
+  det._t=setTimeout(run,dur+60);
+  /* interruzione: annulla senza finalizzare (la nuova animazione prende il posto) */
+  det._cleanup=()=>{ det.removeEventListener("transitionend",done); clearTimeout(det._t); det._cleanup=null; };
+}
+function toggleDetail(btn){
+  const det=document.getElementById(btn.getAttribute("aria-controls"));
+  const willOpen=btn.getAttribute("aria-expanded")!=="true";
+  const grp=btn.closest(".wgroup");
+  const reduce=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  btn.setAttribute("aria-expanded",String(willOpen));
+
+  /* interrompe un'eventuale animazione in corso: niente glitch su click ravvicinati */
+  if(det._cleanup) det._cleanup();
+
+  if(reduce){
+    det.style.cssText=""; det.hidden=!willOpen;
+    if(grp) grp.classList.toggle("is-open",willOpen);
+    return;
+  }
+  const animating=!!det.style.transition;
+
+  if(willOpen){
+    /* APRE: pura rivelazione in altezza (nessuna dissolvenza → wipe pulito) */
+    if(grp) grp.classList.add("is-open");
+    det.hidden=false;
+    /* se stava già animando, riparte dall'altezza VISIVA corrente per continuità */
+    const from=animating ? det.getBoundingClientRect().height+"px" : "0px";
+    det.style.overflow="hidden"; det.style.maxHeight=from;
+    void det.offsetHeight;
+    const h=det.scrollHeight;
+    det.style.transition="max-height .32s cubic-bezier(.22,.61,.36,1)";
+    det.style.maxHeight=h+"px";
+    armFinish(det,320,()=>{ det.style.transition=det.style.maxHeight=det.style.overflow=""; });
+  } else {
+    /* CHIUDE: rientra in altezza dall'altezza corrente */
+    const cur=animating ? det.getBoundingClientRect().height : det.scrollHeight;
+    det.style.overflow="hidden"; det.style.maxHeight=cur+"px";
+    void det.offsetHeight;
+    if(grp) grp.classList.remove("is-open"); /* angoli e ombra rientrano insieme */
+    det.style.transition="max-height .26s cubic-bezier(.4,0,1,1)";
+    det.style.maxHeight="0px";
+    armFinish(det,260,()=>{ det.hidden=true; det.style.transition=det.style.maxHeight=det.style.overflow=""; });
+  }
+}
+/* tooltip "prima disponibilità": posizionato in fixed sopra il bottone così da uscire
+   dal clipping dello scroller e stare sempre sopra l'header sticky (bring to front) */
+function positionInfoTip(btn){
+  const tip=btn._tip; if(!tip) return;
+  const r=btn.getBoundingClientRect();
+  tip.style.left=(r.left+r.width/2)+"px";
+  tip.style.top=(r.top-9)+"px";
+}
+function repositionOpenTips(){ document.querySelectorAll("body > .tip.is-open").forEach(t=>{ if(t._btn) positionInfoTip(t._btn); }); }
+function setupInteractions(){
+  document.querySelectorAll("body > .tip").forEach(t=>t.remove()); // pulizia tip orfani dei render precedenti
+  document.querySelectorAll(".persona-btn").forEach(b=>b.addEventListener("click",()=>toggleDetail(b)));
+  document.querySelectorAll(".info-tip").forEach(btn=>{
+    const tip=btn.querySelector(".tip"); if(!tip) return;
+    btn._tip=tip; tip._btn=btn;
+    // il tip viene spostato su <body> così esce dallo stacking context sticky di .info e sta sempre in primo piano
+    const open=()=>{ if(tip.parentElement!==document.body) document.body.appendChild(tip); positionInfoTip(btn); tip.classList.add("is-open"); };
+    const close=()=>tip.classList.remove("is-open");
+    btn.addEventListener("pointerenter",open);
+    btn.addEventListener("pointerleave",close);
+    btn.addEventListener("focus",open);
+    btn.addEventListener("blur",close);
+  });
+  // tooltip nome completo: solo quando il testo è effettivamente troncato (ellipsis)
+  const isClipped=el=>el.scrollWidth>el.clientWidth+1;
+  document.querySelectorAll(".p-name").forEach(el=>{
+    el.addEventListener("pointerenter",()=>{ if(isClipped(el)) showNtip(el); });
+    el.addEventListener("pointerleave",hideNtip);
+    const btn=el.closest(".persona-btn");
+    if(btn){ btn.addEventListener("focus",()=>{ if(isClipped(el)) showNtip(el); }); btn.addEventListener("blur",hideNtip); }
+  });
+}
+const AVAIL_MIN=8; // soglia "vendibile": ore libere minime in una settimana per contare come disponibile
+function availFree(w){ // massimo di ore libere in una settimana dell'orizzonte visibile
+  let best=0; for(let i=0;i<VIEW.weeks;i++){ const s=cellState(w,i); if(s.kind==="free"&&s.free>best) best=s.free; } return best;
+}
+function hasAvailability(w){ return isAvailAt(w,SEL); } // disponibile = ore libere nella settimana selezionata
+function applySearch(){
+  const inp=document.getElementById("q"), empty=document.getElementById("empty"), board=document.getElementById("board");
+  const availBtn=document.getElementById("availOnly"), availOn=!!availBtn&&availBtn.getAttribute("aria-pressed")==="true";
+  const q=inp.value.trim().toLowerCase(); let visible=0;
+  document.querySelectorAll(".wgroup").forEach(grp=>{
+    const w=DATA.workers.find(x=>x.id===grp.dataset.w);
+    const hay=(w.name+" "+w.role+" "+w.allocations.map(a=>a.project).join(" ")).toLowerCase();
+    const match=(!q||hay.includes(q)) && (!availOn||hasAvailability(w));
+    grp.hidden=!match; if(match) visible++;
+    if(!match){
+      const dr=document.getElementById("detail-"+w.id); if(dr) dr.hidden=true;
+      grp.classList.remove("is-open");
+      const b=grp.querySelector(".persona-btn"); if(b) b.setAttribute("aria-expanded","false");
+    }
+  });
+  // col filtro attivo i disponibili salgono in cima per ore libere (della settimana selezionata) decrescenti
+  if(availOn){
+    [...board.querySelectorAll(".wgroup")]
+      .sort((a,b)=>freeAt(DATA.workers.find(x=>x.id===b.dataset.w),SEL)-freeAt(DATA.workers.find(x=>x.id===a.dataset.w),SEL))
+      .forEach(g=>board.appendChild(g));
+  } else {
+    DATA.workers.forEach(w=>{ const g=board.querySelector(`.wgroup[data-w="${w.id}"]`); if(g) board.appendChild(g); });
+  }
+  if(visible===0){
+    empty.textContent=availOn
+      ? (q?"Nessun risultato disponibile in questa settimana.":`Nessuno è libero nella settimana ${weekHdr(SEL)} — prova un'altra settimana.`)
+      : "Nessun worker corrisponde alla ricerca.";
+  }
+  empty.hidden=visible>0;
+}
+function setupSearch(){
+  document.getElementById("q").addEventListener("input",applySearch);
+}
+function setupAvailFilter(){
+  const btn=document.getElementById("availOnly"); if(!btn) return;
+  btn.addEventListener("click",()=>{
+    btn.setAttribute("aria-pressed",String(btn.getAttribute("aria-pressed")!=="true"));
+    hideGtip(); applySearch();
+  });
+}
+function scrollToToday(){
+  const sc=document.getElementById("scroller");
+  const wk=parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--wk"))||VIEW.wk;
+  const smooth=window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth";
+  sc.scrollTo({left:Math.max(0,(DATA.currentWeek-1)*wk),behavior:smooth});
+}
+function setupHorizon(){
+  const btns=[...document.querySelectorAll(".hbtn")];
+  btns.forEach(b=>b.addEventListener("click",()=>{
+    const h=parseInt(b.dataset.h,10);
+    if(h===VIEW.weeks) return;
+    btns.forEach(x=>{ const on=x===b; x.classList.toggle("is-on",on); x.setAttribute("aria-pressed",String(on)); });
+    applyView(h);
+    clampSel();              // la settimana selezionata potrebbe non rientrare più nell'orizzonte
+    render();
+    applySearch();
+    scrollToToday();
+  }));
+}
+function setupTimelineNav(){
+  document.getElementById("navToday").addEventListener("click",()=>{ selectWeek(DATA.currentWeek); scrollToToday(); });
+}
+function syncHead(){
+  const sc=document.getElementById("scroller"), th=document.getElementById("thead");
+  if(sc&&th) th.scrollLeft=sc.scrollLeft;
+}
+function setupStickyHeader(){
+  const sc=document.getElementById("scroller"), th=document.getElementById("thead"), tb=document.querySelector(".topbar");
+  function topbarVar(){ document.documentElement.style.setProperty("--topbar-h",(tb?tb.offsetHeight:0)+"px"); }
+  function stuck(){ const pin=tb?tb.offsetHeight:0; th.classList.toggle("is-stuck", th.getBoundingClientRect().top<=pin+0.5); }
+  topbarVar(); stuck();
+  sc.addEventListener("scroll",()=>{ syncHead(); repositionOpenTips(); },{passive:true});
+  window.addEventListener("scroll",()=>{ stuck(); repositionOpenTips(); },{passive:true});
+  window.addEventListener("resize",()=>{ topbarVar(); stuck(); repositionOpenTips(); },{passive:true});
+}
+applyView(VIEW.weeks); render(); setupSearch(); setupAvailFilter(); setupHorizon(); setupTimelineNav(); setupWeekSelect(); setupGtip(); setupNameTips(); setupStickyHeader();
+</script>
+</body>
+</html>

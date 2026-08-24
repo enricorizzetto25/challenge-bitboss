@@ -1,0 +1,6 @@
+# Repo della challenge BitBoss: tracciare solo il deliverable.
+# Ignora tutto il contenuto della cartella Redstones Brandbook...
+/*
+# ...tranne ciò che riguarda la challenge.
+!.gitignore
+!worker-gantt.html
