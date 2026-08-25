@@ -73,13 +73,34 @@
 
   /* CONTENT — full page */
   .content{ padding:var(--sp-2) var(--sp-6) var(--sp-6); }
-  .page-head{ margin-bottom:var(--sp-5); }
+  .page-head{ margin-bottom:24px; }
   .page-head h1{ font-family:var(--font-head); font-size:24px; font-weight:700; margin:0; letter-spacing:-.02em; }
   .page-head p{ margin:8px 0 0; color:var(--text-2); font-size:13.5px; max-width:none; line-height:1.6; }
   .page-head strong{ color:var(--ink); font-weight:600; }
 
+  /* ── Team bar: capacità vendibile del team nella settimana selezionata (SEL).
+        UI flat — niente sfumature, niente bordi; fondo grigio-chiaro come search/segmented. ── */
+  .teambar{ display:flex; align-items:center; gap:16px 24px; flex-wrap:wrap;
+            padding:16px 20px; margin-bottom:14px;
+            border-radius:var(--r-lg); background:var(--surface-2); }
+  .tb-main{ display:flex; align-items:center; gap:13px; }
+  .tb-ico{ width:40px; height:40px; border-radius:var(--r-md); flex:none;
+           display:flex; align-items:center; justify-content:center;
+           background:var(--brand-tint); color:var(--brand-ink); }   /* verde chiaro = item selezionato in sidebar */
+  .tb-ico svg{ width:20px; height:20px; }
+  .tb-text{ display:flex; flex-direction:column; gap:2px; }
+  .tb-figure{ display:flex; align-items:baseline; }
+  .tb-num{ font-family:var(--font-head); font-size:26px; font-weight:700; color:var(--ink); line-height:1; letter-spacing:-.02em; }
+  .tb-unit{ font-family:var(--font-head); font-size:16px; font-weight:600; color:var(--text-2); margin:0 8px 0 1px; }
+  .tb-lbl{ font-size:14px; font-weight:600; color:var(--text-2); }
+  .tb-sub{ font-size:12px; font-weight:500; color:var(--muted); }
+  .tb-stat{ display:flex; flex-direction:column; align-items:flex-end; gap:1px; margin-left:auto; line-height:1.1; }
+  .tb-stat-n{ font-family:var(--font-head); font-size:20px; font-weight:700; color:var(--ink); }
+  .tb-stat-l{ font-size:11px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); }
+
   .toolbar{ display:flex; align-items:center; justify-content:space-between; gap:var(--sp-4); flex-wrap:wrap; margin-bottom:var(--sp-4); }
   .legend{ display:flex; flex-wrap:wrap; gap:var(--sp-5); font-size:12px; color:var(--text-2); }
+  .chart-legend{ margin-bottom:40px; }
   .legend .li{ display:flex; align-items:center; gap:7px; }
   .lg-sw{ display:inline-block; width:22px; height:12px; border-radius:3px; flex:none; }
   .lg-free{ background:var(--av-hi); }
@@ -96,6 +117,29 @@
   .tbtn:focus-visible{ outline:3px solid var(--focus); outline-offset:1px; }
   /* selettore orizzonte temporale */
   .tctl{ display:inline-flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  /* filtro per ruolo: dropdown custom (listbox ARIA) vestito come pill flat "Solo disponibili".
+        Neutro in ogni stato — nessun verde: attivo o no, la UI resta identica. */
+  .rolesel{ position:relative; display:inline-flex; align-items:center; flex:none; }
+  .rolebtn{ display:inline-flex; align-items:center; gap:7px; height:36px; padding:0 12px 0 14px;
+            border:1px solid var(--line); border-radius:var(--r-pill); background:var(--surface);
+            color:var(--text-2); font-family:inherit; font-size:12.5px; font-weight:600; cursor:pointer;
+            white-space:nowrap; transition:background .15s ease, border-color .15s ease, color .15s ease; }
+  .rolebtn:hover{ border-color:var(--muted); color:var(--ink); }
+  .rolebtn:focus-visible{ outline:3px solid var(--focus); outline-offset:1px; }
+  .rolebtn .chev-dn{ width:14px; height:14px; color:var(--muted); flex:none; transition:transform .18s ease, color .15s ease; }
+  .rolebtn:hover .chev-dn{ color:var(--text-2); }
+  .rolebtn[aria-expanded="true"]{ border-color:var(--muted); color:var(--ink); }
+  .rolebtn[aria-expanded="true"] .chev-dn{ transform:rotate(180deg); color:var(--text-2); }
+  .rolemenu{ position:absolute; top:calc(100% + 6px); left:0; z-index:60; min-width:200px; max-height:320px; overflow-y:auto;
+             margin:0; padding:6px; list-style:none; background:var(--surface); border:1px solid var(--line);
+             border-radius:var(--r-md); box-shadow:0 12px 28px -10px rgba(16,24,40,.22); }
+  .rolemenu[hidden]{ display:none; }
+  .roleopt{ display:flex; align-items:center; gap:8px; height:34px; padding:0 10px; border-radius:var(--r-sm);
+            font-size:12.5px; font-weight:600; color:var(--text-2); cursor:pointer; white-space:nowrap; }
+  .roleopt:hover, .roleopt.is-active{ background:var(--surface-2); color:var(--ink); }
+  .roleopt[aria-selected="true"]{ color:var(--ink); }
+  .roleopt .opt-check{ width:15px; height:15px; flex:none; color:var(--brand-strong); opacity:0; }
+  .roleopt[aria-selected="true"] .opt-check{ opacity:1; }
   .seg{ display:inline-flex; align-items:center; gap:2px; background:var(--surface-2); border-radius:var(--r-md); padding:3px; }
   .seg .lbl{ font-size:11px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; color:var(--text-2); padding:0 8px 0 6px; }
   .hbtn{ height:30px; padding:0 14px; border:0; background:transparent; color:var(--text-2); font-family:inherit; font-size:12.5px; font-weight:600; cursor:pointer; border-radius:var(--r-sm); }
@@ -359,18 +403,42 @@
         <p><strong>Capacità libera</strong> da vendere per worker, settimana per settimana.</p>
       </div>
 
-      <div class="toolbar">
-        <div class="legend" aria-hidden="true">
-          <span class="li"><span class="lg-sw lg-free"></span> Capacità libera (da vendere)</span>
-          <span class="li"><span class="lg-sw lg-full"></span> Pieno</span>
-          <span class="li"><span class="lg-sw lg-over"></span> Over-allocato</span>
-          <span class="li"><span class="lg-sw lg-off"></span> Accordo non attivo</span>
+      <div class="teambar" id="teambar" role="status" aria-live="polite">
+        <div class="tb-main">
+          <span class="tb-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.66 3.58 3 8 3s8-1.34 8-3V6"/><path d="M4 12v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/></svg></span>
+          <span class="tb-text">
+            <span class="tb-figure"><span class="tb-num tnum" id="teamFree">0</span><span class="tb-unit">h</span><span class="tb-lbl">da vendere</span></span>
+            <span class="tb-sub" id="teamWeek"></span>
+          </span>
         </div>
-        <div class="tctl">
+        <div class="tb-stat">
+          <span class="tb-stat-n tnum" id="teamAvail">0</span>
+          <span class="tb-stat-l" id="teamAvailLbl">worker liberi</span>
+        </div>
+      </div>
+
+      <div class="legend chart-legend" aria-hidden="true">
+        <span class="li"><span class="lg-sw lg-free"></span> Capacità libera (da vendere)</span>
+        <span class="li"><span class="lg-sw lg-full"></span> Pieno</span>
+        <span class="li"><span class="lg-sw lg-over"></span> Over-allocato</span>
+        <span class="li"><span class="lg-sw lg-off"></span> Accordo non attivo</span>
+      </div>
+
+      <div class="toolbar">
+        <div class="tctl tctl-left">
+          <div class="rolesel" id="rolesel">
+            <button type="button" class="rolebtn" id="roleBtn" aria-haspopup="listbox" aria-expanded="false" aria-label="Filtra i worker per ruolo">
+              <span class="rolebtn-txt" id="roleBtnTxt">Tutti i ruoli</span>
+              <svg class="chev-dn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <ul class="rolemenu" id="roleMenu" role="listbox" tabindex="-1" aria-label="Ruolo" hidden></ul>
+          </div>
           <button class="filt" id="availOnly" type="button" aria-pressed="false" aria-label="Mostra solo i worker con ore libere nella settimana selezionata">
             <svg class="filt-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
             Solo disponibili
           </button>
+        </div>
+        <div class="tctl tctl-right">
           <div class="seg" role="group" aria-label="Orizzonte temporale">
             <span class="lbl">Orizzonte</span>
             <button class="hbtn is-on" type="button" data-h="12" aria-pressed="true">3 mesi</button>
@@ -495,6 +563,10 @@ function freeAt(w,i){ const s=cellState(w,i); return s.kind==="free"?s.free:0; }
 function isAvailAt(w,i){ return cellState(w,i).kind==="free"; } // disponibile = free>0 nella settimana
 function matchesSearch(w){ const q=(document.getElementById("q")?.value||"").trim().toLowerCase();
   if(!q) return true; return (w.name+" "+w.role+" "+w.allocations.map(a=>a.project).join(" ")).toLowerCase().includes(q); }
+let ROLE="";                                   // ruolo selezionato ("" = tutti); fonte di verità del filtro
+function roleFilterValue(){ return ROLE; }
+/* insieme filtrato = ricerca testuale + filtro ruolo (compongono). Usato da lista e team bar. */
+function matchesFilters(w){ return (!ROLE||w.role===ROLE) && matchesSearch(w); }
 
 const REF=40;
 function bookedAt(w,i){ return w.allocations.reduce((s,a)=>s+(a.hoursPerWeek[i]||0),0); }
@@ -906,14 +978,25 @@ function setupInteractions(){
   });
 }
 function hasAvailability(w){ return isAvailAt(w,SEL); } // disponibile = ore libere nella settimana selezionata
+/* Team bar (#1): totale ore vendibili del team nella settimana selezionata (SEL).
+   Riflette la ricerca; ignora il toggle "Solo disponibili" (chi ha 0h libere somma 0 → invariante). */
+function renderTeamSummary(){
+  const numEl=document.getElementById("teamFree"); if(!numEl) return;
+  const set=DATA.workers.filter(matchesFilters);
+  let free=0, avail=0;
+  set.forEach(w=>{ const f=freeAt(w,SEL); free+=f; if(f>0) avail++; });
+  numEl.textContent=free;
+  document.getElementById("teamWeek").textContent="settimana "+weekHdr(SEL);
+  document.getElementById("teamAvail").textContent=avail;
+  document.getElementById("teamAvailLbl").textContent="worker liber"+(avail===1?"o":"i");
+}
 function applySearch(){
   const inp=document.getElementById("q"), empty=document.getElementById("empty"), board=document.getElementById("board");
   const availBtn=document.getElementById("availOnly"), availOn=!!availBtn&&availBtn.getAttribute("aria-pressed")==="true";
-  const q=inp.value.trim().toLowerCase(); let visible=0;
+  const q=inp.value.trim().toLowerCase(); const role=roleFilterValue(); let visible=0;
   document.querySelectorAll(".wgroup").forEach(grp=>{
     const w=DATA.workers.find(x=>x.id===grp.dataset.w);
-    const hay=(w.name+" "+w.role+" "+w.allocations.map(a=>a.project).join(" ")).toLowerCase();
-    const match=(!q||hay.includes(q)) && (!availOn||hasAvailability(w));
+    const match=matchesFilters(w) && (!availOn||hasAvailability(w));
     grp.hidden=!match; if(match) visible++;
     if(!match){
       const dr=document.getElementById("detail-"+w.id); if(dr) dr.hidden=true;
@@ -930,11 +1013,13 @@ function applySearch(){
     DATA.workers.forEach(w=>{ const g=board.querySelector(`.wgroup[data-w="${w.id}"]`); if(g) board.appendChild(g); });
   }
   if(visible===0){
+    const subj=role?`Nessun ${role}`:"Nessuno";
     empty.textContent=availOn
-      ? (q?"Nessun risultato disponibile in questa settimana.":`Nessuno è libero nella settimana ${weekHdr(SEL)} — prova un'altra settimana.`)
-      : "Nessun worker corrisponde alla ricerca.";
+      ? (q?"Nessun risultato disponibile in questa settimana.":`${subj} è libero nella settimana ${weekHdr(SEL)} — prova un'altra settimana.`)
+      : (q||role)?"Nessun worker corrisponde ai filtri.":"Nessun worker corrisponde alla ricerca.";
   }
   empty.hidden=visible>0;
+  renderTeamSummary();
 }
 function setupSearch(){
   document.getElementById("q").addEventListener("input",applySearch);
@@ -944,6 +1029,57 @@ function setupAvailFilter(){
   btn.addEventListener("click",()=>{
     btn.setAttribute("aria-pressed",String(btn.getAttribute("aria-pressed")!=="true"));
     hideGtip(); applySearch();
+  });
+}
+/* filtro ruolo (#5): dropdown custom (listbox ARIA), opzioni generate dai dati (DRY).
+      Compone con ricerca + settimana + "solo disponibili". Neutro in ogni stato (nessun verde). */
+function setupRoleFilter(){
+  const btn=document.getElementById("roleBtn"), menu=document.getElementById("roleMenu"),
+        txt=document.getElementById("roleBtnTxt"); if(!btn||!menu) return;
+  const CHK='<svg class="opt-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 13 4 4L19 7"/></svg>';
+  const roles=[...new Set(DATA.workers.map(w=>w.role))].sort((a,b)=>a.localeCompare(b,"it"));
+  const items=[{v:"",l:"Tutti i ruoli"},...roles.map(r=>({v:r,l:r}))];
+  menu.innerHTML=items.map((it,i)=>
+    `<li class="roleopt" role="option" id="ropt-${i}" data-val="${it.v}" aria-selected="${it.v===ROLE}">${CHK}<span>${it.l}</span></li>`).join("");
+  const opts=[...menu.querySelectorAll(".roleopt")];
+  let active=Math.max(0,items.findIndex(it=>it.v===ROLE));
+
+  function setActive(i){ active=(i+opts.length)%opts.length;
+    opts.forEach((o,k)=>o.classList.toggle("is-active",k===active));
+    menu.setAttribute("aria-activedescendant",opts[active].id);
+    opts[active].scrollIntoView({block:"nearest"});
+  }
+  function open(){ if(!menu.hidden) return; menu.hidden=false; btn.setAttribute("aria-expanded","true");
+    setActive(Math.max(0,items.findIndex(it=>it.v===ROLE)));
+    menu.focus();                       // il focus passa alla listbox: le frecce navigano le opzioni
+    document.addEventListener("click",onDoc,true); }
+  function close(focus){ if(menu.hidden) return; menu.hidden=true; btn.setAttribute("aria-expanded","false");
+    menu.removeAttribute("aria-activedescendant"); document.removeEventListener("click",onDoc,true);
+    if(focus) btn.focus(); }
+  function onDoc(e){ if(!e.target.closest("#rolesel")) close(false); }
+  function choose(i){ const it=items[i]; ROLE=it.v; txt.textContent=it.l;
+    opts.forEach((o,k)=>o.setAttribute("aria-selected",String(k===i)));
+    close(true); hideGtip(); applySearch(); }
+
+  btn.addEventListener("click",()=>{ menu.hidden?open():close(false); });
+  btn.addEventListener("keydown",e=>{
+    if(e.key==="ArrowDown"||e.key==="Enter"||e.key===" "){ e.preventDefault(); open(); }
+    else if(e.key==="ArrowUp"){ e.preventDefault(); open(); setActive(active-1); }
+  });
+  menu.setAttribute("tabindex","-1");   // focusable via script, fuori dall'ordine di tabulazione
+  menu.addEventListener("keydown",e=>{
+    switch(e.key){
+      case "ArrowDown": e.preventDefault(); setActive(active+1); break;
+      case "ArrowUp": e.preventDefault(); setActive(active-1); break;
+      case "Home": e.preventDefault(); setActive(0); break;
+      case "End": e.preventDefault(); setActive(opts.length-1); break;
+      case "Enter": case " ": e.preventDefault(); choose(active); break;
+      case "Escape": case "Tab": close(e.key==="Escape"); break;
+    }
+  });
+  opts.forEach((o,i)=>{
+    o.addEventListener("click",()=>choose(i));
+    o.addEventListener("mousemove",()=>setActive(i));
   });
 }
 function scrollToToday(){
@@ -981,7 +1117,7 @@ function setupStickyHeader(){
   window.addEventListener("scroll",()=>{ stuck(); repositionOpenTips(); },{passive:true});
   window.addEventListener("resize",()=>{ topbarVar(); stuck(); repositionOpenTips(); },{passive:true});
 }
-applyView(VIEW.weeks); render(); setupSearch(); setupAvailFilter(); setupHorizon(); setupTimelineNav(); setupWeekSelect(); setupGtip(); setupNameTips(); setupStickyHeader();
+applyView(VIEW.weeks); render(); renderTeamSummary(); setupSearch(); setupAvailFilter(); setupRoleFilter(); setupHorizon(); setupTimelineNav(); setupWeekSelect(); setupGtip(); setupNameTips(); setupStickyHeader();
 </script>
 </body>
 </html>
