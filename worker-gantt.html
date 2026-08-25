@@ -94,7 +94,10 @@
   .tb-unit{ font-family:var(--font-head); font-size:16px; font-weight:600; color:var(--text-2); margin:0 8px 0 1px; }
   .tb-lbl{ font-size:14px; font-weight:600; color:var(--text-2); }
   .tb-sub{ font-size:12px; font-weight:500; color:var(--muted); }
-  .tb-stat{ display:flex; flex-direction:column; align-items:flex-end; gap:1px; margin-left:auto; line-height:1.1; }
+  .tb-stats{ display:flex; align-items:stretch; margin-left:auto; }
+  .tb-stat{ display:flex; flex-direction:column; align-items:flex-end; gap:1px; line-height:1.1; }
+  /* separatore leggero tra le due statistiche di team */
+  .tb-stat + .tb-stat{ padding-left:28px; border-left:1px solid var(--line); }
   .tb-stat-n{ font-family:var(--font-head); font-size:20px; font-weight:700; color:var(--ink); }
   .tb-stat-l{ font-size:11px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); }
 
@@ -259,6 +262,8 @@
   .cap-val{ font-size:15px; font-weight:600; color:var(--ink); }
   .cap-u{ display:block; font-size:11px; color:var(--muted); font-weight:500; }
   .cap-off{ color:var(--muted); }
+  /* costo orario lordo: micro-dettaglio a bassa gerarchia (attributo dell'accordo, non segnale primario) */
+  .cap-cost{ display:block; margin-top:3px; font-size:11px; font-weight:500; color:var(--muted); font-variant-numeric:tabular-nums; }
 
   .kpi{ display:inline-flex; align-items:center; gap:3px; min-width:52px; justify-content:center; padding:7px 10px; border-radius:var(--r-sm); font-weight:700; font-size:15px; }
   .kpi .u{ font-size:11px; font-weight:600; opacity:.75; }
@@ -271,6 +276,8 @@
   .kpi.st-off{ background:transparent; color:var(--muted); font-weight:600; }
   /* col "ore disponibili": KPI + affordance info con tooltip */
   .libcell{ display:inline-flex; align-items:center; gap:5px; }
+  /* valorizzazione € delle ore libere: secondaria, sotto il KPI (segnale primario resta il numero di ore) */
+  .lib-eur{ display:block; margin-top:4px; font-size:11px; font-weight:500; color:var(--muted); font-variant-numeric:tabular-nums; }
   .info-tip{ position:relative; display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; padding:0; border:0; background:transparent; color:var(--muted); border-radius:var(--r-pill); cursor:pointer; flex:none; transition:background .15s ease, color .15s ease; }
   .info-tip:hover{ color:var(--text-2); background:rgba(20,19,34,.06); }
   .info-tip:focus-visible{ outline:3px solid var(--focus); outline-offset:1px; color:var(--text-2); }
@@ -337,8 +344,13 @@
   .l2leg-items{ display:flex; flex-direction:column; gap:11px; }
   .l2leg-items .it{ display:flex; align-items:center; gap:9px; font-size:12.5px; color:var(--ink); }
   .l2leg-items .it .pj{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .l2leg-items .it .h{ margin-left:auto; padding-left:12px; color:var(--text-2); font-weight:600; font-variant-numeric:tabular-nums; flex:none; }
+  /* colonna destra dell'item: ore (segnale) + costo settimanale del progetto (secondario, muto) */
+  .l2leg-items .it .it-r{ margin-left:auto; padding-left:12px; flex:none; display:flex; flex-direction:column; align-items:flex-end; line-height:1.25; }
+  .l2leg-items .it .it-r .h{ color:var(--text-2); font-weight:600; font-variant-numeric:tabular-nums; }
   .l2sw{ width:12px; height:12px; border-radius:3px; flex:none; }
+  /* costo € = sempre dettaglio a bassa gerarchia, muto e tabulare */
+  .eur{ font-size:11px; font-weight:500; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .l2sum-row b .eur{ margin-left:7px; }
   .l2sum{ margin-top:14px; padding-top:13px; border-top:1px solid var(--line); display:flex; flex-direction:column; gap:9px; }
   .l2sum-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:12.5px; color:var(--text-2); }
   .l2sum-row b{ font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
@@ -411,9 +423,15 @@
             <span class="tb-sub" id="teamWeek"></span>
           </span>
         </div>
-        <div class="tb-stat">
-          <span class="tb-stat-n tnum" id="teamAvail">0</span>
-          <span class="tb-stat-l" id="teamAvailLbl">worker liberi</span>
+        <div class="tb-stats">
+          <div class="tb-stat">
+            <span class="tb-stat-n tnum" id="teamCost">€0</span>
+            <span class="tb-stat-l">capacità non coperta / sett</span>
+          </div>
+          <div class="tb-stat">
+            <span class="tb-stat-n tnum" id="teamAvail">0</span>
+            <span class="tb-stat-l" id="teamAvailLbl">worker liberi</span>
+          </div>
         </div>
       </div>
 
@@ -477,70 +495,70 @@ function pw(...segs){ const a=[]; for(const [v,c] of segs){ for(let k=0;k<c;k++)
 const DATA={
   horizonStartISO:"2026-08-03", weeks:W, currentWeek:2,
   workers:[
-    { id:"w2", name:"Luca Bianchi", role:"Backend Engineer", agreementEndISO:"2026-09-13",
+    { id:"w2", name:"Luca Bianchi", role:"Backend Engineer", agreementEndISO:"2026-09-13", costPerHour:45,
       capacityPerWeek:pw([40,6],[0,W]),
       allocations:[
         {project:"Portale Clienti",hoursPerWeek:pw([20,6],[0,W])},
         {project:"CRM Vendite",hoursPerWeek:pw([10,6],[0,W])}
       ] },
-    { id:"w1", name:"Maria Rossi", role:"Frontend Engineer", agreementEndISO:"2027-06-30",
+    { id:"w1", name:"Maria Rossi", role:"Frontend Engineer", agreementEndISO:"2027-06-30", costPerHour:42,
       capacityPerWeek:pw([40,W]),
       allocations:[
         {project:"Portale Clienti",hoursPerWeek:pw([25,6],[20,20],[15,W])},
         {project:"CRM Vendite",hoursPerWeek:pw([15,4],[10,8],[5,8],[0,W])}
       ] },
-    { id:"w3", name:"Sara Verdi", role:"Full-stack Engineer", agreementEndISO:"2027-09-30",
+    { id:"w3", name:"Sara Verdi", role:"Full-stack Engineer", agreementEndISO:"2027-09-30", costPerHour:50,
       capacityPerWeek:pw([40,W]),
       allocations:[
         {project:"Portale Clienti",hoursPerWeek:pw([30,6],[25,2],[20,W])},
         {project:"CRM Vendite",hoursPerWeek:pw([10,2],[20,3],[10,25],[0,W])}
       ] },
-    { id:"w4", name:"Paolo Neri", role:"Data Engineer", agreementEndISO:"2027-03-31",
+    { id:"w4", name:"Paolo Neri", role:"Data Engineer", agreementEndISO:"2027-03-31", costPerHour:46,
       capacityPerWeek:pw([40,W]),
       allocations:[{project:"Data Warehouse",hoursPerWeek:pw([10,W])}] },
-    { id:"w5", name:"Giulia Costa", role:"UX Designer", agreementEndISO:"2027-12-31",
+    { id:"w5", name:"Giulia Costa", role:"UX Designer", agreementEndISO:"2027-12-31", costPerHour:40,
       capacityPerWeek:pw([20,5],[40,W]),
       allocations:[{project:"App Mobile",hoursPerWeek:pw([15,5],[20,W])}] },
-    { id:"w6", name:"Marco Gialli", role:"DevOps Engineer", agreementEndISO:"2027-08-31",
+    { id:"w6", name:"Marco Gialli", role:"DevOps Engineer", agreementEndISO:"2027-08-31", costPerHour:55,
       capacityPerWeek:pw([40,W]),
       allocations:[{project:"Infrastruttura Cloud",hoursPerWeek:pw([40,40],[20,W])}] },
-    { id:"w7", name:"Elena Fontana", role:"Product Designer", agreementEndISO:"2027-11-30",
+    { id:"w7", name:"Elena Fontana", role:"Product Designer", agreementEndISO:"2027-11-30", costPerHour:44,
       capacityPerWeek:pw([40,W]),
       allocations:[
         {project:"Design System",hoursPerWeek:pw([20,10],[15,W])},
         {project:"App Mobile",hoursPerWeek:pw([10,8],[5,W])}
       ] },
-    { id:"w8", name:"Davide Marchetti", role:"Backend Engineer", agreementEndISO:"2027-05-31",
+    { id:"w8", name:"Davide Marchetti", role:"Backend Engineer", agreementEndISO:"2027-05-31", costPerHour:48,
       capacityPerWeek:pw([40,W]),
       allocations:[{project:"Integrazione ERP",hoursPerWeek:pw([40,12],[30,W])}] },
-    { id:"w9", name:"Chiara Ferrari", role:"QA Engineer", agreementEndISO:"2028-02-28",
+    { id:"w9", name:"Chiara Ferrari", role:"QA Engineer", agreementEndISO:"2028-02-28", costPerHour:35,
       capacityPerWeek:pw([32,W]),
       allocations:[
         {project:"Portale Clienti",hoursPerWeek:pw([18,W])},
         {project:"E-commerce",hoursPerWeek:pw([10,6],[6,W])}
       ] },
-    { id:"w10", name:"Simone Greco", role:"Frontend Engineer", agreementEndISO:"2026-11-01",
+    { id:"w10", name:"Simone Greco", role:"Frontend Engineer", agreementEndISO:"2026-11-01", costPerHour:38,
       capacityPerWeek:pw([40,13],[0,W]),
       allocations:[
         {project:"Sito Corporate",hoursPerWeek:pw([30,13],[0,W])},
         {project:"Design System",hoursPerWeek:pw([10,13],[0,W])}
       ] },
-    { id:"w11", name:"Francesca Russo", role:"Data Scientist", agreementEndISO:"2027-12-31",
+    { id:"w11", name:"Francesca Russo", role:"Data Scientist", agreementEndISO:"2027-12-31", costPerHour:58,
       capacityPerWeek:pw([40,W]),
       allocations:[
         {project:"Piattaforma Analytics",hoursPerWeek:pw([25,W])},
         {project:"Chatbot AI",hoursPerWeek:pw([20,4],[15,10],[10,W])}
       ] },
-    { id:"w12", name:"Alessandro Conti", role:"DevOps Engineer", agreementEndISO:"2027-09-30",
+    { id:"w12", name:"Alessandro Conti", role:"DevOps Engineer", agreementEndISO:"2027-09-30", costPerHour:52,
       capacityPerWeek:pw([40,W]),
       allocations:[{project:"Migrazione Cloud",hoursPerWeek:pw([15,W])}] },
-    { id:"w13", name:"Martina Esposito", role:"UX Researcher", agreementEndISO:"2027-07-31",
+    { id:"w13", name:"Martina Esposito", role:"UX Researcher", agreementEndISO:"2027-07-31", costPerHour:42,
       capacityPerWeek:pw([24,W]),
       allocations:[
         {project:"App Mobile",hoursPerWeek:pw([12,W])},
         {project:"Design System",hoursPerWeek:pw([6,8],[4,W])}
       ] },
-    { id:"w14", name:"Giovanni Ricci", role:"Solutions Architect", agreementEndISO:"2028-06-30",
+    { id:"w14", name:"Giovanni Ricci", role:"Solutions Architect", agreementEndISO:"2028-06-30", costPerHour:68,
       capacityPerWeek:pw([40,W]),
       allocations:[
         {project:"Integrazione ERP",hoursPerWeek:pw([20,W])},
@@ -560,6 +578,11 @@ const gridCols=()=>`grid-template-columns:repeat(${VIEW.weeks},var(--wk))`;
 let SEL=DATA.currentWeek;
 function clampSel(){ if(SEL<0||SEL>=VIEW.weeks) SEL=DATA.currentWeek; }
 function freeAt(w,i){ const s=cellState(w,i); return s.kind==="free"?s.free:0; }
+/* € = costo settimanale della capacità NON coperta (ore libere × costo orario lordo).
+   Framing commerciale: quanto ci costa ogni settimana la capacità ancora da vendere. */
+function freeCostAt(w,i){ return freeAt(w,i)*(w.costPerHour||0); }
+/* separatore migliaia con il punto, convenzione italiana (es. 4.842) — indipendente dall'ICU del browser */
+function fmtEur(n){ return "€"+Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g,"."); }
 function isAvailAt(w,i){ return cellState(w,i).kind==="free"; } // disponibile = free>0 nella settimana
 function matchesSearch(w){ const q=(document.getElementById("q")?.value||"").trim().toLowerCase();
   if(!q) return true; return (w.name+" "+w.role+" "+w.allocations.map(a=>a.project).join(" ")).toLowerCase().includes(q); }
@@ -675,7 +698,8 @@ function laneHtml(w){
 function rowHtml(w){
   const cw=SEL, detailId="detail-"+w.id;
   const capNow=w.capacityPerWeek[cw];
-  const capHtml=(capNow==null||capNow===0)?`<span class="cap-off">—</span>`:`<span class="cap-val tnum">${capNow}</span><span class="cap-u">h/sett</span>`;
+  const costLine=w.costPerHour?`<span class="cap-cost tnum">€${w.costPerHour}/h</span>`:"";
+  const capHtml=(capNow==null||capNow===0)?`<span class="cap-off">—</span>${costLine}`:`<span class="cap-val tnum">${capNow}</span><span class="cap-u">h/sett</span>${costLine}`;
   const stNow=cellState(w,cw);
   let tip="";
   if(stNow.kind!=="free"){
@@ -696,8 +720,8 @@ function rowHtml(w){
         `<span class="p-av" aria-hidden="true">${initials(w.name)}</span>`+
         `<span class="p-txt"><span class="p-name">${w.name}</span><span class="p-role" title="${w.role}">${w.role}</span></span>`+
         `<span class="chev" aria-hidden="true">${ICO.chev}</span></button></div>`+
-      `<div class="col-cap" aria-label="${w.name}, capacità: ${(capNow==null||capNow===0)?'nessuna':capNow+' ore a settimana'}">${capHtml}</div>`+
-      `<div class="col-lib" aria-label="${kpiAria(w,stNow)}"><span class="libcell">${kpi(stNow)}${tip}</span></div>`+
+      `<div class="col-cap" aria-label="${w.name}, capacità: ${(capNow==null||capNow===0)?'nessuna':capNow+' ore a settimana'}${w.costPerHour?', costo orario lordo '+w.costPerHour+' euro':''}">${capHtml}</div>`+
+      `<div class="col-lib" aria-label="${kpiAria(w,stNow)}${stNow.kind==='free'&&w.costPerHour?', pari a '+fmtEur(freeCostAt(w,SEL))+' a settimana di capacità non coperta':''}"><span class="libcell">${kpi(stNow)}${tip}</span>${(stNow.kind==='free'&&w.costPerHour)?`<span class="lib-eur tnum" aria-hidden="true">${fmtEur(freeCostAt(w,SEL))}/sett</span>`:''}</div>`+
       `<div class="col-fin">${fin}</div>`+
     `</div>`+
     laneHtml(w)+
@@ -708,15 +732,18 @@ function rowHtml(w){
 const L2_TRACK=84, L2_MAX=50, L2_PX=L2_TRACK/L2_MAX;
 function detailHtml(w){
   const cw=SEL, detailId="detail-"+w.id;
-  const items=w.allocations.map(a=>`<div class="it"><span class="l2sw" style="background:${projColor(a.project)}"></span><span class="pj">${a.project}</span><span class="h">${a.hoursPerWeek[cw]||0}h</span></div>`).join("");
+  const c=w.costPerHour||0;
+  const eurSpan=v=>c?`<span class="eur">${fmtEur(v*c)}</span>`:"";
+  const items=w.allocations.map(a=>{ const h=a.hoursPerWeek[cw]||0;
+    return `<div class="it"><span class="l2sw" style="background:${projColor(a.project)}"></span><span class="pj">${a.project}</span><span class="it-r"><span class="h">${h}h</span>${eurSpan(h)}</span></div>`; }).join("");
   const stNow=cellState(w,cw), capNow=w.capacityPerWeek[cw]||0;
   const bookedNow=w.allocations.reduce((s,a)=>s+(a.hoursPerWeek[cw]||0),0);
   const freeRow = stNow.kind==="over"
       ? `<div class="l2sum-row over"><span>Over-allocato</span><b>+${stNow.excess}h</b></div>`
-      : `<div class="l2sum-row${stNow.kind==="free"?' free':''}"><span>Ore libere</span><b>${stNow.kind==="full"?0:stNow.free}h</b></div>`;
+      : `<div class="l2sum-row${stNow.kind==="free"?' free':''}"><span>Ore libere</span><b>${stNow.kind==="full"?0:stNow.free}h${stNow.kind==="free"?eurSpan(stNow.free):""}</b></div>`;
   const dInfo=`<div class="d-info">`+
     `<div class="l2leg-items">${items||'<div class="it" style="color:var(--muted)">Nessun progetto</div>'}</div>`+
-    `<div class="l2sum"><div class="l2sum-row"><span>Totale allocato</span><b>${bookedNow}h / ${capNow}h</b></div>${freeRow}</div></div>`;
+    `<div class="l2sum"><div class="l2sum-row"><span>Totale allocato</span><b>${bookedNow}h / ${capNow}h${eurSpan(bookedNow)}</b></div>${freeRow}</div></div>`;
   const compact=VIEW.wk<48;
   let wks=""; let prevM=null;
   for(let i=0;i<VIEW.weeks;i++){
@@ -760,11 +787,14 @@ function gtipL1(w,i){
   const cap=w.capacityPerWeek[i];
   if(cap==null||cap===0) return gtipOff(w,i);
   const st=cellState(w,i), booked=bookedAt(w,i);
+  const eurRow=(st.kind==="free"&&w.costPerHour)
+    ? `<div class="gtip-row"><span class="lbl">Da vendere</span><b>${fmtEur(freeCostAt(w,i))}/sett</b></div>` : "";
   return gtipHead(w,i)+`<div class="gtip-rows">`+
     `<div class="gtip-row"><span class="lbl">Capacità</span><b>${cap}h</b></div>`+
     `<div class="gtip-row"><span class="lbl">Allocate</span><b>${booked}h</b></div>`+
     `<div class="gtip-div"></div>`+
     `<div class="gtip-row gtip-state">${gtipStateRow(st)}</div>`+
+    eurRow+
   `</div>`;
 }
 function gtipL2(w,i){
@@ -983,10 +1013,11 @@ function hasAvailability(w){ return isAvailAt(w,SEL); } // disponibile = ore lib
 function renderTeamSummary(){
   const numEl=document.getElementById("teamFree"); if(!numEl) return;
   const set=DATA.workers.filter(matchesFilters);
-  let free=0, avail=0;
-  set.forEach(w=>{ const f=freeAt(w,SEL); free+=f; if(f>0) avail++; });
+  let free=0, avail=0, cost=0;
+  set.forEach(w=>{ const f=freeAt(w,SEL); free+=f; if(f>0) avail++; cost+=freeCostAt(w,SEL); });
   numEl.textContent=free;
   document.getElementById("teamWeek").textContent="settimana "+weekHdr(SEL);
+  document.getElementById("teamCost").textContent=fmtEur(cost);
   document.getElementById("teamAvail").textContent=avail;
   document.getElementById("teamAvailLbl").textContent="worker liber"+(avail===1?"o":"i");
 }
