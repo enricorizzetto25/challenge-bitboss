@@ -4,3 +4,4 @@
 # ...tranne ciò che riguarda la challenge.
 !.gitignore
 !worker-gantt.html
+!README.md

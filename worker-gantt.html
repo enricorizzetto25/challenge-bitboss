@@ -173,8 +173,6 @@
   .hrow .wk .mo{ font-size:9px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:rgba(255,255,255,.82); min-height:12px; }
   .hrow .wk .d{ font-size:11px; margin-top:1px; }
   .hrow .wk.compact .d{ font-size:10px; }
-  .nowtag.mini{ font-size:0; padding:3px; line-height:0; }
-  .nowtag.mini::after{ content:""; display:block; width:5px; height:5px; border-radius:50%; background:#12122b; }
   /* colonna OGGI: banda continua header + righe */
   .wk.today{ background:var(--today-bg); }
   .hrow .wk.today{ background:rgba(255,255,255,.12); color:#fff; }
@@ -189,7 +187,6 @@
   .hrow .wk.sel{ background:rgba(255,255,255,.18); box-shadow:none; }
   .hrow .wk.sel .d{ color:#fff; font-weight:800; }
   .hrow .wk.sel::after{ content:""; position:absolute; left:0; right:0; bottom:0; height:4px; border-radius:0; background:var(--sel-accent); }
-  .nowtag{ position:absolute; top:12px; left:50%; transform:translateX(-50%); font-size:8.5px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#12122b; background:var(--brand); padding:1px 6px; border-radius:var(--r-pill); }
   /* cliff (fine accordo) */
   .wk.cliff{ box-shadow:inset 2px 0 0 0 var(--danger); }
 
@@ -327,8 +324,6 @@
   .l2wk.today .l2date, .l2wk.today .l2date .m{ color:var(--today-ink); }
 
   .empty{ padding:40px 18px; text-align:center; color:var(--text-2); font-size:14px; }
-  .foot{ padding:var(--sp-4) var(--sp-6); color:var(--text-2); font-size:12.5px; }
-  .foot strong{ color:var(--ink); }
   @media (prefers-reduced-motion: reduce){ *{ transition:none !important; } }
   @media (max-width:900px){ .app{ grid-template-columns:1fr; } .sidebar{ display:none; } }
 </style>
@@ -396,6 +391,18 @@
 </div>
 
 <script>
+/* ============================================================================
+   WORKER GANTT — struttura del file (unico file, vanilla, zero build)
+   ----------------------------------------------------------------------------
+   1. DATI          W/VIEW/SEL, dataset WORKERS, helper pw()
+   2. DATE & FORMAT calendario settimane, fmtDMY/fmtDMYL, MESI
+   3. STATO CELLA   cellState(w,i) → { kind, free, ... } singola fonte di verità
+   4. RENDER        headHtml / laneHtml / rowHtml / detailHtml → render()
+   5. SETTIMANA     selectWeek() + setupWeekSelect() (radiogroup accessibile)
+   6. FILTRI/SORT   applySearch() (ricerca + "solo disponibili", ordina per free)
+   7. INTERAZIONI   tooltip (setupGtip/placeGtip), sticky header, nav timeline
+   8. INIT          in fondo: applyView → render → setup*()
+   ========================================================================== */
 const W=52; // orizzonte dati: un anno intero (settimane)
 /* pw = costruisce un array di W settimane da segmenti [valore, ripetizioni]; riempie con l'ultimo valore */
 function pw(...segs){ const a=[]; for(const [v,c] of segs){ for(let k=0;k<c;k++) a.push(v); } const last=segs.length?segs[segs.length-1][0]:0; while(a.length<W) a.push(last); return a.slice(0,W); }
@@ -506,7 +513,6 @@ const MESI=["Gen","Feb","Mar","Apr","Mag","Giu","Lug","Ago","Set","Ott","Nov","D
 const MESI_L=["gennaio","febbraio","marzo","aprile","maggio","giugno","luglio","agosto","settembre","ottobre","novembre","dicembre"];
 function weekDate(i){ const d=new Date(DATA.horizonStartISO+"T00:00:00"); d.setDate(d.getDate()+i*7); return d; }
 function weekEnd(i){ const d=weekDate(i); d.setDate(d.getDate()+6); return d; }
-function fmtDM(iso){ const d=new Date(iso+"T00:00:00"); return d.getDate()+" "+MESI[d.getMonth()]; }
 function fmtDMY(iso){ const d=new Date(iso+"T00:00:00"); return d.getDate()+" "+MESI[d.getMonth()]+" "+d.getFullYear(); }
 function fmtDMYL(iso){ const d=new Date(iso+"T00:00:00"); return d.getDate()+" "+MESI_L[d.getMonth()]+" "+d.getFullYear(); }
 function fmtWeek(i){ const d=weekDate(i); return d.getDate()+" "+MESI[d.getMonth()]; }
@@ -898,10 +904,6 @@ function setupInteractions(){
     const btn=el.closest(".persona-btn");
     if(btn){ btn.addEventListener("focus",()=>{ if(isClipped(el)) showNtip(el); }); btn.addEventListener("blur",hideNtip); }
   });
-}
-const AVAIL_MIN=8; // soglia "vendibile": ore libere minime in una settimana per contare come disponibile
-function availFree(w){ // massimo di ore libere in una settimana dell'orizzonte visibile
-  let best=0; for(let i=0;i<VIEW.weeks;i++){ const s=cellState(w,i); if(s.kind==="free"&&s.free>best) best=s.free; } return best;
 }
 function hasAvailability(w){ return isAvailAt(w,SEL); } // disponibile = ore libere nella settimana selezionata
 function applySearch(){
