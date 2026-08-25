@@ -1,0 +1,3 @@
+{
+  "rewrites": [{ "source": "/", "destination": "/worker-gantt.html" }]
+}
